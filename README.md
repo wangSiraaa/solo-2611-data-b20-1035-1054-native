@@ -13,8 +13,9 @@
 材料在 `materials/725/`，演示在 `examples/demo.py`，测试在 `tests/`。
 
 ```bash
-python3 -m unittest discover -s tests -v     # 31 个测试
-python3 examples/demo.py                      # 全流程演示
+python3 -m unittest discover -s tests -v     # 64 个测试
+python3 examples/demo.py                      # 全流程演示（审核库）
+python3 examples/credit_demo.py               # 全流程演示（可转学时底单 / 换章窗口 / 停窗 / 交接）
 ```
 
 ---
@@ -173,3 +174,62 @@ python3 -m gradaudit list-candidates 1 X    # 独立列出候选及类别，不�
 `tests/test_gradaudit.py`（31 项）覆盖：候选显式不猜测、点数校验、组数上限；两份合法方案均接受、复用被拒且定位 R1、未知记录/非候选/类别不符/修订不符、点数只从记录读取、未用记录、额外字段；两组争一份、单组够整体不够、多候选与未分配、精确不可行的共享记录；修订冲突、旧修订可查、映射改变可行性；准备-确认-重开、拒收准备不可确认、仅导入新修订也会使确认 stale、外部方案同边界；以及 **200 个随机小实例与暴力枚举的可行性一致性交叉校验**（并校验每个可行解都能被验证器接受）。
 
 规模合同：至 12 份记录、每份至多 3 候选、点数 1..6，均在 `solver.py` 中显式校验。不做排课、GPA 或先修。
+
+---
+
+## 8. 可转学时底单 / 换章窗口 / 停窗 / 离线交接
+
+在已确认的分配之上另立一张**可转学时底单**，并检查有向换章窗口网络能否把真实面额滚大（多发），以及如何用最少的停窗阻断、同时保住必须可达的伙伴校种类。全部比例、余数、逐站计值都用精确 `Fraction`，绝不使用浮点。
+
+### 协议档（`credit-protocol/1`）
+按**实际选中**的本地课程查档，取得发行学校、可转学时种类与兑换比例：
+```json
+{"format":"credit-protocol/1","revision":1,"entries":[
+  {"course_id":"PU_A1","issuing_school":"PU","kind":"A","ratio":"3/2"}]}
+```
+比例可为 `3/2`、`2`、`[3,2]` 或 `{"numerator":3,"denominator":2}`；**浮点被拒绝**（`rationals.parse_positive_rational`）。
+
+### 底单（`ledger.py` / `Store.build_ledger`）
+* 只从**已确认**方案开单；未用记录不开线；同一记录不得重复（不拆点）。
+* 同 `(发行校, 种类)` 的已用记录先各以精确分数计时，再**合池向下取整一次**成可盖章学时。
+* 不足一整点的余数**留在本池**（`remainder` + `REMAINDER::校::种类` 凭证），**不可挪到另一种类**——两池各 1/2 余数合计是一整点也不盖章。
+* `appeal_lines()` 逐条给出：实际课程去向、归入哪一池、尾数凭证。
+* `Store.build_ledger` 用确认时固定的 `(catalog, records, requirements)` 修订，故合法的校外分配按其**实际确认版本**办理。
+
+```bash
+python3 -m gradaudit build-ledger --request REQ1 --protocol-revision 1
+```
+
+### 换章窗口与多发（`windows.py`）
+每个窗口只接写明「校+种类」的**整份**凭证，按正有理比例向下取整一次，盖为另一校一种；结果为 0 不出新凭证。一次查验从底单真实池出发，不拆并、不补点，最多 `max_steps` 步；回到**同校同种类且面额严格增加**即存在可走通的多发路径。
+
+* `find_multi_issue` 逐站模拟取整，因此「比例连乘 > 1 但真实面额太小、逐站取整后走不成」的路径**不会**误报（例：`(3/2)·(3/2)=9/4>1`，但 1 点起手 `1→1` 不增）。
+* 规模：≤8 种节点、≤10 窗、`max_steps`≤6。
+
+### 停窗（`solve_suspension`）
+求**关闭数最少**的一组窗口，使这批真实底单全部不能多发，同时 `must_stay_reachable` 的伙伴对仍沿开放窗口**连通**（只核接口可达）。`non_suspendable` 指定的联办窗口不可停。若保通与防多发不兼容，返回 `contradiction` 并分辨是「连通本身不可能」还是「连通与防多发冲突」。
+
+```bash
+python3 -m gradaudit suspend --windows w.json --starts s.json --charter c.json
+```
+
+### 离线交接（`handover.py`）
+采用**去名批次清册 + 联盟覆盖回执**：学校把实际发行的 `(校, 种类, 整点面额)` 制成去名清册（相同面额合并、保留在校回查号）；联盟据此逐窗试盖，给出真实多发路径或逐面额覆盖。面额是否多发只取决于 `(校, 种类, 面额, 开放窗, 步数)`，与持有人身份无关，故**校内申诉与联盟听证对每一面额裁决一致**（`compare_ledger_and_roster`）。
+
+* 补发 = 加一名持有人；撤单 = 去一名持有人，最后一名撤单后该面额不再发行、清册行消失，回执随之收缩。
+* 听证后即使两端离线，仅凭交接件（`build_packet`/`review_packet`）即可复核：要么查出一次真实多发，要么确认停窗后覆盖本批所有已发行面额。
+* 换版：`diff_judgements` 比较两个窗口修订下的逐面额裁决，给出**仍适用**、**新增多发**、**由多发改覆盖**、增删项，明确哪些旧判定继续有效。
+
+```bash
+python3 -m gradaudit handover --roster r.json --windows w.json --max-steps 2 --closed-window W_BA > packet.json
+python3 -m gradaudit review-packet packet.json
+python3 -m gradaudit coverage --roster r.json --windows w.json --max-steps 2 [--closed-window W_BA]
+python3 -m gradaudit diff-windows --roster r.json --old-windows old.json --new-windows new.json --max-steps 2
+```
+
+### 题面场景（见 `tests/test_windows_ledger.py` 与 `examples/credit_demo.py`）
+* 浦校两条各 1 点、均选 A 类、各 3/2 → 合并 A 类 3 点。
+* A→河校 B 按 2/3、B→A 按 2：`3→2→4` 两步多发；停回窗 `W_BA` 后 A 仍可达 B，仅停 1 窗。
+* 只把第二条改投 B 类：A=1、B=1；A 去河校 `floor(2/3)=0` 归零，B 无窗口 → **不必停窗**。
+* 恢复原底单、把回窗列为不可停且仍要求 A→B：**无合规停窗方案**（矛盾）。
+* 比例连乘 > 1、逐站取整 + 面额太小走不成：1 点起手不增，2 点起手才 `2→3→4`。

@@ -26,12 +26,33 @@ from .errors import (
     ConfirmationError,
     ConfirmationStaleError,
     GradAuditError,
+    HandoverError,
+    LedgerError,
     NotPreparedError,
+    ProtocolError,
     RevisionConflictError,
     RevisionNotFoundError,
     SchemaError,
+    SuspensionError,
     VerificationError,
+    WindowError,
 )
+from .handover import (
+    CoverageReceipt,
+    FaceJudgement,
+    HandoverPacket,
+    Roster,
+    build_packet,
+    compare_ledger_and_roster,
+    coverage_receipt,
+    diff_judgements,
+    ledger_judgements,
+    multi_issue_thresholds,
+    parse_roster,
+    review_packet,
+    roster_from_ledgers,
+)
+from .ledger import Ledger, LineItem, Pool, build_ledger
 from .library import Store
 from .model import (
     Assignment,
@@ -46,8 +67,27 @@ from .model import (
     parse_records,
     parse_requirements,
 )
+from .protocol import Protocol, ProtocolEntry, parse_protocol
+from .rationals import format_ratio, parse_positive_rational
 from .solver import MasterResult, GroupOutcome, solve, single_group_max
 from .verify import VerifyResult, verify_plan, verify_plan_document
+from .windows import (
+    Network,
+    Node,
+    ProfitFinding,
+    StartState,
+    SuspensionRequest,
+    SuspensionResult,
+    Walk,
+    Window,
+    find_multi_issue,
+    find_profits,
+    parse_network,
+    parse_suspension_request,
+    reachable,
+    solve_suspension,
+    stamp,
+)
 
 __all__ = [
     "Store",
@@ -77,6 +117,51 @@ __all__ = [
     "NotPreparedError",
     "ConfirmationError",
     "ConfirmationStaleError",
+    "ProtocolError",
+    "LedgerError",
+    "WindowError",
+    "SuspensionError",
+    "HandoverError",
+    # credit protocol + ledger
+    "Protocol",
+    "ProtocolEntry",
+    "parse_protocol",
+    "Ledger",
+    "Pool",
+    "LineItem",
+    "build_ledger",
+    "parse_positive_rational",
+    "format_ratio",
+    # exchange windows + suspension
+    "Network",
+    "Node",
+    "Window",
+    "Walk",
+    "StartState",
+    "ProfitFinding",
+    "SuspensionRequest",
+    "SuspensionResult",
+    "parse_network",
+    "parse_suspension_request",
+    "stamp",
+    "find_multi_issue",
+    "find_profits",
+    "reachable",
+    "solve_suspension",
+    # offline handover
+    "Roster",
+    "FaceJudgement",
+    "CoverageReceipt",
+    "HandoverPacket",
+    "parse_roster",
+    "roster_from_ledgers",
+    "coverage_receipt",
+    "ledger_judgements",
+    "compare_ledger_and_roster",
+    "multi_issue_thresholds",
+    "diff_judgements",
+    "build_packet",
+    "review_packet",
 ]
 
 __version__ = "1.0.0"

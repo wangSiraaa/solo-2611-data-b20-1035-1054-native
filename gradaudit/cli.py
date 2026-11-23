@@ -20,10 +20,24 @@ import sys
 from typing import Any, Optional
 
 from .errors import GradAuditError
+from .handover import (
+    build_packet,
+    coverage_receipt,
+    diff_judgements,
+    parse_roster,
+    review_packet,
+)
 from .library import Store
-from .model import parse_catalog, parse_records, parse_requirements, parse_plan
+from .model import parse_catalog, parse_records, parse_requirements
 from .solver import solve
 from .verify import verify_plan, verify_plan_document
+from .windows import (
+    Node,
+    StartState,
+    parse_network,
+    parse_suspension_request,
+    solve_suspension,
+)
 
 
 def _load(path: str) -> Any:
@@ -165,6 +179,67 @@ def cmd_points(args) -> int:
 
 
 # --------------------------------------------------------------------------- #
+# credit ledger / windows / suspension / handover
+# --------------------------------------------------------------------------- #
+def cmd_build_ledger(args) -> int:
+    with _store(args) as store:
+        ledger = store.build_ledger(args.request, protocol_revision=args.protocol_revision)
+        _dump(ledger.as_dict())
+    return 0
+
+
+def cmd_suspend(args) -> int:
+    network = parse_network(_load(args.windows))
+    request = parse_suspension_request(_load(args.charter))
+    starts = []
+    for entry in _load(args.starts):
+        starts.append(StartState(
+            label=entry["label"],
+            node=Node(entry["school"], entry["kind"]),
+            value=entry["value"],
+        ))
+    result = solve_suspension(network, starts, request)
+    _dump(result.as_dict())
+    return 0 if result.feasible else 1
+
+
+def cmd_coverage(args) -> int:
+    roster = parse_roster(_load(args.roster))
+    network = parse_network(_load(args.windows))
+    receipt = coverage_receipt(roster, network, max_steps=args.max_steps,
+                               closed_windows=args.closed_window or [])
+    _dump(receipt.as_dict())
+    return 0 if receipt.all_covered else 1
+
+
+def cmd_handover(args) -> int:
+    network = parse_network(_load(args.windows))
+    roster = parse_roster(_load(args.roster))
+    packet = build_packet(roster, network, max_steps=args.max_steps,
+                          closed_windows=args.closed_window or [])
+    _dump(packet.as_dict())
+    return 0
+
+
+def cmd_review_packet(args) -> int:
+    review = review_packet(_load(args.packet))
+    _dump(review)
+    return 0 if review["all_covered"] else 1
+
+
+def cmd_diff_revisions(args) -> int:
+    network_old = parse_network(_load(args.old_windows))
+    network_new = parse_network(_load(args.new_windows))
+    roster = parse_roster(_load(args.roster))
+    old = coverage_receipt(roster, network_old, max_steps=args.max_steps,
+                           closed_windows=args.closed_window or [])
+    new = coverage_receipt(roster, network_new, max_steps=args.max_steps,
+                           closed_windows=args.closed_window or [])
+    _dump(diff_judgements(old, new))
+    return 0
+
+
+# --------------------------------------------------------------------------- #
 # parser
 # --------------------------------------------------------------------------- #
 def build_parser() -> argparse.ArgumentParser:
@@ -252,6 +327,48 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("preparation_id")
     sp.add_argument("--db", default="gradaudit.sqlite3")
     sp.set_defaults(func=cmd_points)
+
+    # credit ledger from a confirmed allocation
+    sp = sub.add_parser("build-ledger", help="build the credit ledger from a confirmed allocation")
+    sp.add_argument("--request", required=True)
+    sp.add_argument("--protocol-revision", type=int, required=True)
+    sp.add_argument("--db", default="gradaudit.sqlite3")
+    sp.set_defaults(func=cmd_build_ledger)
+
+    # window suspension
+    sp = sub.add_parser("suspend", help="find the minimum window closure that stops all multi-issue")
+    sp.add_argument("--windows", required=True, help="exchange-windows/1 JSON file")
+    sp.add_argument("--starts", required=True, help="JSON list of {label, school, kind, value}")
+    sp.add_argument("--charter", required=True, help="suspension request JSON (max_steps, constraints)")
+    sp.set_defaults(func=cmd_suspend)
+
+    # league coverage
+    sp = sub.add_parser("coverage", help="replay stamping against an anonymised roster")
+    sp.add_argument("--roster", required=True)
+    sp.add_argument("--windows", required=True)
+    sp.add_argument("--max-steps", type=int, required=True)
+    sp.add_argument("--closed-window", action="append", default=[])
+    sp.set_defaults(func=cmd_coverage)
+
+    # offline handover packet
+    sp = sub.add_parser("handover", help="build a self-contained case handover packet")
+    sp.add_argument("--roster", required=True)
+    sp.add_argument("--windows", required=True)
+    sp.add_argument("--max-steps", type=int, required=True)
+    sp.add_argument("--closed-window", action="append", default=[])
+    sp.set_defaults(func=cmd_handover)
+
+    sp = sub.add_parser("review-packet", help="offline re-verify a case handover packet")
+    sp.add_argument("packet")
+    sp.set_defaults(func=cmd_review_packet)
+
+    sp = sub.add_parser("diff-windows", help="which face-value rulings still apply after a ratio change")
+    sp.add_argument("--roster", required=True)
+    sp.add_argument("--old-windows", required=True)
+    sp.add_argument("--new-windows", required=True)
+    sp.add_argument("--max-steps", type=int, required=True)
+    sp.add_argument("--closed-window", action="append", default=[])
+    sp.set_defaults(func=cmd_diff_revisions)
 
     return p
 

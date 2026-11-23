@@ -59,9 +59,9 @@ from .errors import (
     RevisionNotFoundError,
     SchemaError,
 )
+from .ledger import Ledger, build_ledger
 from .model import (
     Catalog,
-    Plan,
     Records,
     Requirements,
     content_hash,
@@ -70,7 +70,9 @@ from .model import (
     parse_records,
     parse_requirements,
 )
-from .verify import VerifyResult, verify_plan
+from .protocol import Protocol, parse_protocol
+from .verify import verify_plan
+from .windows import Network, parse_network
 
 
 def _now() -> str:
@@ -237,6 +239,20 @@ class Store:
                 detail_json TEXT NOT NULL,
                 at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS protocol_revisions (
+                revision INTEGER PRIMARY KEY,
+                content_hash TEXT NOT NULL,
+                doc_json TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS window_revisions (
+                revision INTEGER PRIMARY KEY,
+                content_hash TEXT NOT NULL,
+                doc_json TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
             """
         )
         self.conn.commit()
@@ -399,6 +415,111 @@ class Store:
             "SELECT revision, request_id, content_hash, created_at FROM requirements_revisions ORDER BY revision"
         ).fetchall()
         return [dict(r) for r in rows]
+
+    # =====================================================================
+    # credit protocol (issuing school / kind / ratio per local course)
+    # =====================================================================
+    def import_protocol(self, doc: Any) -> Protocol:
+        protocol = parse_protocol(doc)
+        h = protocol.content_hash()
+        existing = self.get_protocol(protocol.revision)
+        if existing is not None:
+            if existing.content_hash() != h:
+                raise RevisionConflictError(
+                    f"protocol revision {protocol.revision} already imported with different content",
+                    location=f"protocol:{protocol.revision}",
+                )
+            return existing
+        with self._txn():
+            self.conn.execute(
+                "INSERT INTO protocol_revisions(revision, content_hash, doc_json, created_at) VALUES (?,?,?,?)",
+                (protocol.revision, h, json.dumps(protocol.raw_document(), ensure_ascii=False, sort_keys=True), _now()),
+            )
+        return protocol
+
+    def get_protocol(self, revision: int) -> Optional[Protocol]:
+        row = self.conn.execute(
+            "SELECT doc_json FROM protocol_revisions WHERE revision = ?", (revision,)
+        ).fetchone()
+        if row is None:
+            return None
+        return parse_protocol(json.loads(row["doc_json"]))
+
+    # =====================================================================
+    # exchange-window network
+    # =====================================================================
+    def import_windows(self, doc: Any) -> Network:
+        network = parse_network(doc)
+        h = network.content_hash()
+        existing = self.get_windows(network.revision)
+        if existing is not None:
+            if existing.content_hash() != h:
+                raise RevisionConflictError(
+                    f"window revision {network.revision} already imported with different content",
+                    location=f"windows:{network.revision}",
+                )
+            return existing
+        with self._txn():
+            self.conn.execute(
+                "INSERT INTO window_revisions(revision, content_hash, doc_json, created_at) VALUES (?,?,?,?)",
+                (network.revision, h, json.dumps(network.raw_document(), ensure_ascii=False, sort_keys=True), _now()),
+            )
+        return network
+
+    def get_windows(self, revision: int) -> Optional[Network]:
+        row = self.conn.execute(
+            "SELECT doc_json FROM window_revisions WHERE revision = ?", (revision,)
+        ).fetchone()
+        if row is None:
+            return None
+        return parse_network(json.loads(row["doc_json"]))
+
+    # =====================================================================
+    # ledger from a confirmed allocation
+    # =====================================================================
+    def build_ledger(
+        self,
+        request_id: str,
+        *,
+        protocol_revision: int,
+        preparation_id: Optional[str] = None,
+    ) -> Ledger:
+        """Build the transferable-credit ledger from a *confirmed* allocation.
+
+        The plan and its pinned (catalog, records, requirements) revisions come
+        from the confirmation itself, so an off-campus allocation is processed
+        under exactly the revision that was confirmed.  A request with no live
+        confirmation cannot open a ledger.
+        """
+        row = self.conn.execute(
+            "SELECT * FROM audit_confirmations WHERE request_id = ? AND subject_key = ? AND reopened_at IS NULL "
+            "ORDER BY confirmed_at DESC, rowid DESC LIMIT 1",
+            (request_id, self.subject_key),
+        ).fetchone()
+        if row is None:
+            raise NotPreparedError(
+                f"request {request_id!r} has no live confirmation; a ledger can only be built "
+                f"from a confirmed allocation",
+                location=request_id,
+            )
+        if preparation_id is not None and row["preparation_id"] != preparation_id:
+            raise NotPreparedError(
+                f"confirmed preparation is {row['preparation_id']!r}, not the requested {preparation_id!r}",
+                location=preparation_id,
+            )
+        protocol = self.get_protocol(protocol_revision)
+        if protocol is None:
+            raise RevisionNotFoundError(
+                f"protocol revision {protocol_revision} is not imported", location="protocol_revision"
+            )
+        catalog = self.get_catalog(row["catalog_revision"])
+        records = self.get_records(row["records_revision"])
+        if catalog is None or records is None:
+            raise RevisionNotFoundError(
+                "the confirmed catalog/records revisions are no longer available", location=request_id
+            )
+        plan = parse_plan(json.loads(row["plan_json"]))
+        return build_ledger(plan, catalog, records, protocol)
 
     # =====================================================================
     # catalog inspection (list candidates + categories, never auto-choose)

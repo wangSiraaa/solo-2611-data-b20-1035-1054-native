@@ -83,3 +83,33 @@ class BatchAtomicityError(GradAuditError):
     """A batch transition could not be applied atomically (none applied)."""
 
     code = "batch_atomicity"
+
+
+class ProtocolError(GradAuditError):
+    """A selected local course has no credit-protocol entry, or it is malformed."""
+
+    code = "protocol"
+
+
+class LedgerError(GradAuditError):
+    """A credit ledger could not be built from a confirmed allocation."""
+
+    code = "ledger"
+
+
+class WindowError(GradAuditError):
+    """An exchange-window document or query is malformed."""
+
+    code = "window"
+
+
+class SuspensionError(GradAuditError):
+    """No compliant suspension exists (or the request is malformed)."""
+
+    code = "suspension"
+
+
+class HandoverError(GradAuditError):
+    """A handover packet / roster / coverage document is malformed."""
+
+    code = "handover"
