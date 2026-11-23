@@ -1,0 +1,8 @@
+{
+  "document_id": "DOC1",
+  "revision": 1,
+  "segments": [
+    {"segment_id": "S1", "revision": 1, "text": "across fill material"},
+    {"segment_id": "S2", "revision": 1, "text": "down fill material"}
+  ]
+}

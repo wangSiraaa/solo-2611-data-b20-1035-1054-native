@@ -1,0 +1,17 @@
+{
+  "document_id": "DOC1",
+  "clues": [
+    {"clue_id": "H", "segment_id": "S1", "revision": 1, "sense_no": "H1", "surface": "across"},
+    {"clue_id": "V", "segment_id": "S2", "revision": 1, "sense_no": "V1", "surface": "down"}
+  ],
+  "suffix_classes": [
+    {"class_id": "HSC", "clue_id": "H", "suffixes": ["b", "c"]},
+    {"class_id": "VSC", "clue_id": "V", "suffixes": ["d"]}
+  ],
+  "roots": [
+    {"root_id": "HA", "clue_id": "H", "letters": "a", "suffix_class_ids": ["HSC"]},
+    {"root_id": "VB", "clue_id": "V", "letters": "b", "suffix_class_ids": ["VSC"]},
+    {"root_id": "VC", "clue_id": "V", "letters": "c", "suffix_class_ids": ["VSC"]}
+  ],
+  "bans": []
+}

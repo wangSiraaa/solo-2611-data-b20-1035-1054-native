@@ -1,0 +1,8 @@
+{
+  "board_id": "BD1",
+  "slots": [
+    {"slot_id": "SH", "clue_id": "H", "direction": "across", "cells": [[0, 0], [0, 1]]},
+    {"slot_id": "SV", "clue_id": "V", "direction": "down", "cells": [[0, 1], [1, 1]]}
+  ],
+  "locks": []
+}

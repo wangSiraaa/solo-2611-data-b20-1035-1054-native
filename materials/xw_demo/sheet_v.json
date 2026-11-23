@@ -1,0 +1,11 @@
+{
+  "sheet_id": "SV",
+  "document_id": "DOC1",
+  "language": "XY",
+  "package_id": "PK1",
+  "block_id": "B2",
+  "entries": [
+    {"entry_id": "v1", "clue_id": "V", "op": "root", "root_id": "VB", "suffix": "d"},
+    {"entry_id": "v2", "clue_id": "V", "op": "root", "root_id": "VC", "suffix": "d"}
+  ]
+}

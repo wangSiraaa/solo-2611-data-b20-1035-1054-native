@@ -458,6 +458,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--packages-dir", default="data/packages", help="where frozen packages are written"
     )
     p.add_argument("--document", default=None, help="document id (when ambiguous)")
+    p.add_argument("--clue-db", default=None, help="clue registry SQLite (crossword)")
+    p.add_argument("--coinage-db", default=None, help="coinage repository SQLite (crossword)")
     sub = p.add_subparsers(dest="command", required=True)
 
     def add(name: str, func, help_text: str) -> argparse.ArgumentParser:
@@ -517,6 +519,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--operations", required=True)
 
     add("demo", cmd_demo, "run the end-to-end materials/753 demo")
+
+    from .crossword.cli import add_crossword_commands
+
+    add_crossword_commands(add)
     return p
 
 

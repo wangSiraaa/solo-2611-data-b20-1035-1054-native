@@ -1,0 +1,11 @@
+{
+  "sheet_id": "SH",
+  "document_id": "DOC1",
+  "language": "XY",
+  "package_id": "PK1",
+  "block_id": "B1",
+  "entries": [
+    {"entry_id": "h1", "clue_id": "H", "op": "root", "root_id": "HA", "suffix": "b"},
+    {"entry_id": "h2", "clue_id": "H", "op": "root", "root_id": "HA", "suffix": "c"}
+  ]
+}

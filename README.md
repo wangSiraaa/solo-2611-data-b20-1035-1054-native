@@ -31,7 +31,9 @@ delivery_system/
   package_io.py          translation-package/1 写入与结构/覆盖校验
   cli.py / __main__.py   命令行
   demo.py                materials/753 端到端复现（调用官方 package_reader.py）
+  crossword/             双语纵横字谜层（见下节）
 tests/test_delivery.py   20 个测试：覆盖、过期、重组、不可变、规模
+tests/test_crossword.py  33 个测试：谜面册、造词单、拼字盘、离线交接
 ```
 
 ## 两侧的实质逻辑
@@ -82,6 +84,55 @@ content_sha256/created_at/source_release`。包一旦写入即不可变：同 id
 | 读旧包 PACK1 | 仍为 S1@1..S4@1 与旧译文 id/文本 |
 
 `package_reader.py` 被以子进程方式真实读取新旧两个包并校验输出。
+
+## 双语纵横字谜层（crossword/）
+
+在既有「源段目录 / 交付仓」分离之上再加两个库，四库物理分离：
+
+```
+crossword/
+  models.py        不可变值对象：ClueSense/Root/SuffixClass/Ban/CoinageSheet/
+                   CoinageEntry/Credential/SpellingSource/ClueAnswers/
+                   Slot/BoardDefinition/BoardSolution/Conflict/BoardAnalysis
+  clue_registry.py 源侧谜面册：每谜面钉在确切 (segment_id, revision)；词义号、
+                   词根、可用词尾类别、经审定根尾禁例。PublishedClueReader 只读句柄
+  repository.py    交付侧造词仓：造词单绑定确切 (package_id, block_id)，禁跨包复用；
+                   撤稿留痕、已送印 proof 不可变
+  answerbook.py    两侧拼合：逐条造词 → 每义项可填全字串 + 逐拼法回查凭据；
+                   copy 词根按「同一谜面」作用域；禁例在此也拦截
+  board.py         试盘求解：unique/ambiguous/contradictory、强制格、两份可见不同
+                   完整盘、最小冲突锁/槽；可重开盘（save/load + 擦锁重排）
+  handoff.py       两种离线交接：WordFormBook（逐词词形册）与 RuleWalker
+                   （逐字规则 + 编号根尾批条，支持复写/禁配/撤规则改排）
+  demo.py          `python run_demo.py --crossword` 端到端复现
+```
+
+### 关键不变量
+- **谜面绑定修订**：造词单指向的谜面必须由该译块确实覆盖——同段且同
+  `revision`（译块冻结的源修订）。同一天另一份包正文相同但块号不同 → 不能沿用旧单
+  （`assert_block` / 重新 `add_sheet` 到新块）。
+- **词根/词尾/字面全部明给**：不做自然语言推断。`root`/`copy`（同一谜面内复写
+  刚选过的词根）/`literal`（补字面字符）+ 从登记类别取的 `suffix`；禁例在造词与
+  拼册两处都拦。
+- **同形异源仍是一张盘**：同一可见拼法有多条凭据时合并为一个 `SpellingSource`，
+  求解器只按可见字面推理，故印出来仍是一张盘；撤掉一条凭据后若另一条仍在，该词保留。
+- **回查稿源**：任选拼法都能给出「哪张造词单、哪个块、哪个词根/词尾/字面」的凭据。
+- **离线**：试盘可 `save`/`load`，`xw-board --erase/--lock` 无需联网即可擦字、改锁、
+  判唯一或重印；周一撤稿进下一校次，旧 proof 保留原稿源。
+
+### 试盘判据
+- 每格在所有完整合法盘面中的取值集合由定向可满足性查询得到：单值即**强制格**。
+- 全格皆单值 → `unique`，给出完整答案盘；否则 `ambiguous`，给两份**确实可见不同**
+  的完整盘及差异格；无解 → `contradictory`，给出最小不可同时满足的锁字或槽位。
+
+### 规模
+各校次至多 12 槽、每槽至多 10 格；求解为带 MRV 的回溯 + 逐格可满足性查询，
+在该规模内即时完成。
+
+```bash
+python3 run_demo.py --crossword          # 端到端，22 项自检
+python3 -m unittest discover -s tests -v # 含 33 项纵横字谜测试
+```
 
 ## 规模与不扩平台
 
