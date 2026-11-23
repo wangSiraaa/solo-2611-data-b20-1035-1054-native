@@ -1,0 +1,71 @@
+{
+  "chunks": [
+    {
+      "source_ids": [
+        "Q1"
+      ],
+      "source_revisions": [
+        1
+      ],
+      "text": "aa",
+      "translation_id": "N4_AA"
+    },
+    {
+      "source_ids": [
+        "Q2"
+      ],
+      "source_revisions": [
+        1
+      ],
+      "text": "ab",
+      "translation_id": "N4_AB"
+    },
+    {
+      "source_ids": [
+        "Q3"
+      ],
+      "source_revisions": [
+        1
+      ],
+      "text": "b",
+      "translation_id": "N4_B"
+    },
+    {
+      "source_ids": [
+        "Q4"
+      ],
+      "source_revisions": [
+        1
+      ],
+      "text": "c",
+      "translation_id": "N4_C"
+    }
+  ],
+  "content_sha256": "aaaa956708161fb552e6cf68e72753163c675e9226a2cb528d4bd3dc44ead784",
+  "created_at": "2026-11-23T13:17:55+00:00",
+  "document_id": "NEW4",
+  "format": "translation-package/1",
+  "language": "NEW",
+  "package_id": "PKG_NEW4",
+  "rendered_text": "aa\nab\nb\nc",
+  "source_release": 4,
+  "source_revision": 1,
+  "source_snapshot": [
+    {
+      "revision": 1,
+      "segment_id": "Q1"
+    },
+    {
+      "revision": 1,
+      "segment_id": "Q2"
+    },
+    {
+      "revision": 1,
+      "segment_id": "Q3"
+    },
+    {
+      "revision": 1,
+      "segment_id": "Q4"
+    }
+  ]
+}

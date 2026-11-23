@@ -1,0 +1,57 @@
+{
+  "chunks": [
+    {
+      "source_ids": [
+        "P1"
+      ],
+      "source_revisions": [
+        1
+      ],
+      "text": "a",
+      "translation_id": "ABC_A"
+    },
+    {
+      "source_ids": [
+        "P2"
+      ],
+      "source_revisions": [
+        1
+      ],
+      "text": "b",
+      "translation_id": "ABC_B"
+    },
+    {
+      "source_ids": [
+        "P3"
+      ],
+      "source_revisions": [
+        1
+      ],
+      "text": "c",
+      "translation_id": "ABC_C"
+    }
+  ],
+  "content_sha256": "e96945176d2730dfbd0e09660a21569fed07be0ed495f83de7b64b1481994737",
+  "created_at": "2026-11-23T13:17:55+00:00",
+  "document_id": "OLD_ABC",
+  "format": "translation-package/1",
+  "language": "OLD",
+  "package_id": "PKG_OLD_ABC",
+  "rendered_text": "a\nb\nc",
+  "source_release": 3,
+  "source_revision": 1,
+  "source_snapshot": [
+    {
+      "revision": 1,
+      "segment_id": "P1"
+    },
+    {
+      "revision": 1,
+      "segment_id": "P2"
+    },
+    {
+      "revision": 1,
+      "segment_id": "P3"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "matrix": ["a", "b", "c", "d", "e"],
+  "wordlists": [
+    {
+      "wordlist_id": "old_abc",
+      "marks": [
+        {"entry_id": "1", "translation_id": "ABC_A", "start": 0, "end": 1, "segment_id": "P1", "source_revision": 1},
+        {"entry_id": "2", "translation_id": "ABC_B", "start": 0, "end": 1, "segment_id": "P2", "source_revision": 1},
+        {"entry_id": "3", "translation_id": "ABC_C", "start": 0, "end": 1, "segment_id": "P3", "source_revision": 1}
+      ]
+    }
+  ],
+  "book": {
+    "book_id": "NEWCONF",
+    "fascicle_capacity": 2,
+    "marks": [
+      {"entry_id": "N0", "translation_id": "NC0", "start": 0, "end": 1, "segment_id": "R1", "source_revision": 1},
+      {"entry_id": "N1", "translation_id": "NC1", "start": 0, "end": 1, "segment_id": "R2", "source_revision": 1},
+      {"entry_id": "N2", "translation_id": "NC2", "start": 0, "end": 1, "segment_id": "R3", "source_revision": 1},
+      {"entry_id": "N3", "translation_id": "NC3", "start": 0, "end": 1, "segment_id": "R4", "source_revision": 1},
+      {"entry_id": "N4", "translation_id": "NC4", "start": 0, "end": 1, "segment_id": "R5", "source_revision": 1},
+      {"entry_id": "N5", "translation_id": "NC5", "start": 0, "end": 1, "segment_id": "R6", "source_revision": 1}
+    ],
+    "queries": ["N0"]
+  },
+  "clues": [
+    {"kind": "position", "entry_id": "N0", "fascicle": 1, "position": 2},
+    {"kind": "position", "entry_id": "N2", "fascicle": 3, "position": 1},
+    {"kind": "position", "entry_id": "N3", "fascicle": 2, "position": 2}
+  ]
+}

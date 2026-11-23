@@ -14,6 +14,15 @@ python3 run_demo.py
 python3 materials/753/package_reader.py data/packages/PACK1.json
 python3 materials/753/package_reader.py data/packages/PACK2.json
 
+# 字序调查 + 装订：自行发布真实包并跑全部场景
+python3 -m delivery_system collation-demo
+
+# 用真实包文件跑一个场景（旧表 + 散页）
+python3 -m delivery_system collation-run \
+  --spec materials/collation/scenario_3_loose_page.json \
+  --package materials/collation/packages/PKG_OLD_AB.json \
+  --package materials/collation/packages/PKG_NEW4.json
+
 # 测试（标准库 unittest，无需 pytest）
 python3 -m unittest discover -s tests -v
 ```
@@ -31,7 +40,17 @@ delivery_system/
   package_io.py          translation-package/1 写入与结构/覆盖校验
   cli.py / __main__.py   命令行
   demo.py                materials/753 端到端复现（调用官方 package_reader.py）
+  collation/             铅字字序调查 + 装订复排（见下节）
+    glyphs.py            字模表、最长匹配分字、词头比较
+    marks.py             校印标记区间 -> 有序/编号词头（读真实交付包）
+    investigation.py     约束式全序求解 + 试核定位
+    book.py              新书帖号/位置查询 + 互斥散页解释
+    handoff.py           排字单（前缀压缩）+ 字序凭单 + 新散页撤销
+    pipeline.py          真实包 + 场景 spec -> 报告
+    demo.py              collation-demo 端到端（自行发布真实包）
 tests/test_delivery.py   20 个测试：覆盖、过期、重组、不可变、规模
+tests/test_collation.py  50 个测试：分字/调查/装订/交接/真实包集成/撤销
+materials/collation/     真实冻结包 + 四个可复跑场景 spec
 ```
 
 ## 两侧的实质逻辑
@@ -88,3 +107,49 @@ content_sha256/created_at/source_release`。包一旦写入即不可变：同 id
 测试覆盖 100 源段 / 5 语言 / ≥500 译文（含大量重叠诱饵），验证每语言精确覆盖、
 诱饵从不入选、更正后按缺口隔离、补译后恢复。覆盖是 O(n·k) 区间 DP，
 足以支撑题目规模；未引入翻译、语义评分、账号等平台能力。
+
+## 铅字字序调查 + 装订复排（`delivery_system/collation`）
+
+旧词表与新书词条**不是手写文本**，而是从真实 `translation-package/1` 交付块里，
+按校印员标出的**精确字符区间**和对应**源段修订**读出的编号词头。因此：
+
+- **分字**：地方字模表含单字与整块连写字模，按**从左到右最长匹配**分字
+  （`glyphs.TypeMatrix`）。区间越界、分不干净、旧块误贴到新版本都会在成词表前被
+  拒绝（`IntervalOutOfBounds` / `Untokenizable` / `StalePackage` / `UnknownBlock`）。
+- **旧词表顺序** = 译块实际出场顺序，块内按区间起点（`marks.build_wordlist`）。
+- **比较规则**：首个不同字模定先后；短前缀在长词前；词头相同按稳定词条号
+  （数值优先，`2 < 10`）定序（`compare_headwords`）。
+
+### 调查：约束式全序
+一本/数本旧表给出若干相邻词头对；每对贡献一条 `字模x < 字模y` 不等式
+（首个不同字模处），前缀/同字乱序则是与顺序无关的矛盾，直接报出。
+所有相容全序 = 该不等式 DAG 的**线性扩展**，用约束表达、按需枚举（默认上限
+20000，超出抛 `TooManyOrders`），不列遍排列。`CollationInvestigation.check(一组字序)`
+可试核；矛盾时定位到**具体词头对 + 出处块/段/修订**。
+
+### 装订：整书相容
+新书是真实词条 + 每帖容量；给定一个全序即得整书布局（按字序排序、按容量切帖）。
+散页线索：`某词条在第F帖第P位` 或 `同帖上甲紧挨乙在前`，且**所有散页同属一书**。
+对指定词条，`BookSolver.query` 返回在**同时相容于调查和全部散页**的每本整书中
+它确实可能出现的每个 (帖, 位)，每处附一见证全序便于复排；位置唯一则给出
+`signed_position` 供签入，否则保留全部真实可能位置。零解释时返回**最小互斥线索
+子集**（可两两成立、三者不能同属一书）或调查矛盾。
+
+### 交接（两条路都可复排）
+- **调查员→装订组**：`build_slip` 产前缀压缩排字单；先剔除版面相同的字序，
+  再按共用前缀紧凑记录各可见书序。外部人员仅凭排字单即可 `reconstruct_book_orders`
+  复排，并能 `match_clues_against_slip` 独立对位残页。
+- **装订组→调查员**：`certify_precedence` 按某帖位要求的先后关系，只返回**真正可行
+  的全序凭单**（或冲突）。局部结论记录其依赖散页；`revoke_on_new_clue` 在新散页
+  推翻旧推断时**只撤销被推翻的局部结论**，其余保留。
+
+### 复现要点（对应 brief 示例）
+三字模 `a,b,c`，旧表仅 `a<b`：新书 `aa,ab,b,c`（每帖一条）中 `c` 可能在**第 1、3、4 帖，
+绝无第 2 帖**；补入旧表 `c,a` 后 `c` **只在第 1 帖**；仅旧表 + 散页 `b` 在第 3 帖则
+`c` **只在第 4 帖**。`scenario_4` 则给出三张两两可成立、整体不能同属一书的散页。
+全部结果都在 `collation-demo` 与 `materials/collation/` 中可复跑；同字词头按词条号
+定序、以及源更正后**旧包仍按原散页还原原书序**亦在 demo 中验证。
+
+规模：每套至多 12 字模 / 60 新词 / 12 散页线索；在约 1.2 万相容全序的极端情形，
+求解、查询、排字单、凭单均在~1 秒内完成。
+

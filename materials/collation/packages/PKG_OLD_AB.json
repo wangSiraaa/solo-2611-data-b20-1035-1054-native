@@ -1,0 +1,43 @@
+{
+  "chunks": [
+    {
+      "source_ids": [
+        "O1"
+      ],
+      "source_revisions": [
+        1
+      ],
+      "text": "a",
+      "translation_id": "AB_A"
+    },
+    {
+      "source_ids": [
+        "O2"
+      ],
+      "source_revisions": [
+        1
+      ],
+      "text": "b",
+      "translation_id": "AB_B"
+    }
+  ],
+  "content_sha256": "5130d4f30502cf81ce108b54f9121ae640371cabe8b4158da3c1e4be4004b83b",
+  "created_at": "2026-11-23T13:17:55+00:00",
+  "document_id": "OLD_AB",
+  "format": "translation-package/1",
+  "language": "OLD",
+  "package_id": "PKG_OLD_AB",
+  "rendered_text": "a\nb",
+  "source_release": 1,
+  "source_revision": 1,
+  "source_snapshot": [
+    {
+      "revision": 1,
+      "segment_id": "O1"
+    },
+    {
+      "revision": 1,
+      "segment_id": "O2"
+    }
+  ]
+}

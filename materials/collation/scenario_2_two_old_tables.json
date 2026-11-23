@@ -1,0 +1,31 @@
+{
+  "matrix": ["a", "b", "c"],
+  "wordlists": [
+    {
+      "wordlist_id": "old_ab",
+      "marks": [
+        {"entry_id": "1", "translation_id": "AB_A", "start": 0, "end": 1, "segment_id": "O1", "source_revision": 1},
+        {"entry_id": "2", "translation_id": "AB_B", "start": 0, "end": 1, "segment_id": "O2", "source_revision": 1}
+      ]
+    },
+    {
+      "wordlist_id": "old_ca",
+      "marks": [
+        {"entry_id": "3", "translation_id": "CA_C", "start": 0, "end": 1, "segment_id": "O3", "source_revision": 1},
+        {"entry_id": "4", "translation_id": "CA_A", "start": 0, "end": 1, "segment_id": "O4", "source_revision": 1}
+      ]
+    }
+  ],
+  "book": {
+    "book_id": "N4",
+    "fascicle_capacity": 1,
+    "marks": [
+      {"entry_id": "1", "translation_id": "N4_AA", "start": 0, "end": 2, "segment_id": "Q1", "source_revision": 1},
+      {"entry_id": "2", "translation_id": "N4_AB", "start": 0, "end": 2, "segment_id": "Q2", "source_revision": 1},
+      {"entry_id": "3", "translation_id": "N4_B", "start": 0, "end": 1, "segment_id": "Q3", "source_revision": 1},
+      {"entry_id": "4", "translation_id": "N4_C", "start": 0, "end": 1, "segment_id": "Q4", "source_revision": 1}
+    ],
+    "queries": ["4"]
+  },
+  "handoff": "slip"
+}

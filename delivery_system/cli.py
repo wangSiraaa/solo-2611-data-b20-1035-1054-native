@@ -442,6 +442,32 @@ def cmd_demo(args: argparse.Namespace) -> int:
     return 0 if report["ok"] else 3
 
 
+def cmd_collation_demo(args: argparse.Namespace) -> int:
+    """End-to-end collation run over packages actually published by the repo."""
+
+    import tempfile
+
+    from .collation.demo import run_collation_demo
+
+    with tempfile.TemporaryDirectory() as tmp:
+        report = run_collation_demo(tmp)
+    _emit(report)
+    return 0 if report["ok"] else 3
+
+
+def cmd_collation_run(args: argparse.Namespace) -> int:
+    """Run a collation scenario spec against one or more real package files."""
+
+    from .collation.pipeline import run_scenario
+
+    with open(args.spec, encoding="utf-8") as fh:
+        spec = json.load(fh)
+    contents = [read_package(path) for path in args.package]
+    report = run_scenario(spec, contents)
+    _emit(report)
+    return 0
+
+
 # ----------------------------------------------------------------------
 # parser
 # ----------------------------------------------------------------------
@@ -517,6 +543,25 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--operations", required=True)
 
     add("demo", cmd_demo, "run the end-to-end materials/753 demo")
+
+    add(
+        "collation-demo",
+        cmd_collation_demo,
+        "run the end-to-end lead-type collation demo (publishes real packages)",
+    )
+
+    sp = add(
+        "collation-run",
+        cmd_collation_run,
+        "run a collation scenario spec against delivered package files",
+    )
+    sp.add_argument("--spec", required=True, help="JSON scenario spec")
+    sp.add_argument(
+        "--package",
+        action="append",
+        required=True,
+        help="translation-package/1 JSON file (repeatable, in order)",
+    )
     return p
 
 

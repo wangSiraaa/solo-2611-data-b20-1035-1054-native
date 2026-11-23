@@ -1,0 +1,43 @@
+{
+  "chunks": [
+    {
+      "source_ids": [
+        "U1"
+      ],
+      "source_revisions": [
+        1
+      ],
+      "text": "a",
+      "translation_id": "DP2"
+    },
+    {
+      "source_ids": [
+        "U2"
+      ],
+      "source_revisions": [
+        1
+      ],
+      "text": "a",
+      "translation_id": "DP10"
+    }
+  ],
+  "content_sha256": "4aeee2d573ee1f62f27a5da66dc592edb4f63ab57f00a8ae34543f03a3e9e452",
+  "created_at": "2026-11-23T13:17:55+00:00",
+  "document_id": "OLD_DUP",
+  "format": "translation-package/1",
+  "language": "OLD",
+  "package_id": "PKG_OLD_DUP",
+  "rendered_text": "a\na",
+  "source_release": 6,
+  "source_revision": 1,
+  "source_snapshot": [
+    {
+      "revision": 1,
+      "segment_id": "U1"
+    },
+    {
+      "revision": 1,
+      "segment_id": "U2"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "matrix": ["a", "b", "c", "ab"],
+  "wordlists": [
+    {
+      "wordlist_id": "old_a_b",
+      "marks": [
+        {"entry_id": "1", "translation_id": "ABC_A", "start": 0, "end": 1, "segment_id": "P1", "source_revision": 1},
+        {"entry_id": "2", "translation_id": "ABC_B", "start": 0, "end": 1, "segment_id": "P2", "source_revision": 1}
+      ]
+    }
+  ],
+  "book": {
+    "book_id": "LIGCONF",
+    "fascicle_capacity": 2,
+    "marks": [
+      {"entry_id": "E0", "translation_id": "LC0", "start": 0, "end": 2, "segment_id": "V1", "source_revision": 1},
+      {"entry_id": "E1", "translation_id": "LC1", "start": 0, "end": 1, "segment_id": "V2", "source_revision": 1},
+      {"entry_id": "E2", "translation_id": "LC2", "start": 0, "end": 1, "segment_id": "V3", "source_revision": 1},
+      {"entry_id": "E3", "translation_id": "LC3", "start": 0, "end": 1, "segment_id": "V4", "source_revision": 1},
+      {"entry_id": "E4", "translation_id": "LC4", "start": 0, "end": 2, "segment_id": "V5", "source_revision": 1}
+    ],
+    "queries": ["E0"]
+  },
+  "clues": [
+    {"kind": "position", "entry_id": "E0", "fascicle": 1, "position": 1},
+    {"kind": "position", "entry_id": "E3", "fascicle": 2, "position": 1},
+    {"kind": "adjacent", "before_entry_id": "E1", "after_entry_id": "E2"}
+  ]
+}
