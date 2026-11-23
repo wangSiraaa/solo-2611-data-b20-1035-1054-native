@@ -1,0 +1,40 @@
+{
+  "operations": [
+    {
+      "op": "create",
+      "run_id": "ref-run-1",
+      "method_id": "M",
+      "method_revision": 1,
+      "day": 12,
+      "selection": [
+        {
+          "bottle_id": "REF",
+          "portions": 1
+        }
+      ]
+    },
+    {
+      "op": "create",
+      "run_id": "ref-run-2",
+      "method_id": "M",
+      "method_revision": 1,
+      "day": 12,
+      "selection": [
+        {
+          "bottle_id": "REF",
+          "portions": 1
+        }
+      ]
+    },
+    {
+      "op": "start",
+      "run_id": "ref-run-1",
+      "day": 12
+    },
+    {
+      "op": "start",
+      "run_id": "ref-run-2",
+      "day": 14
+    }
+  ]
+}

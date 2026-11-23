@@ -1,0 +1,28 @@
+{
+  "initial_day": 10,
+  "kinds": [
+    {
+      "kind": "R",
+      "open_lifetime_days": 2
+    }
+  ],
+  "bottles": [
+    {
+      "bottle_id": "REF",
+      "kind": "R",
+      "total_portions": 2,
+      "intake_day": 10,
+      "printed_expiry_day": 20,
+      "opened_day": null
+    }
+  ],
+  "methods": [
+    {
+      "method_id": "M",
+      "revision": 1,
+      "requirements": {
+        "R": 1
+      }
+    }
+  ]
+}

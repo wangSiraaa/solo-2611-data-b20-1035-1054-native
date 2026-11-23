@@ -1,0 +1,81 @@
+{
+  "stations": [
+    {"station_id": "A", "lo": 0, "hi": 0},
+    {"station_id": "B", "lo": 0, "hi": 3}
+  ],
+  "edges": {
+    "eO1L": [{"station_id": "A", "reading": 7, "error": 0}],
+    "eO1R": [{"station_id": "A", "reading": 10, "error": 0}],
+    "eO2L": [{"station_id": "B", "reading": 14, "error": 0}],
+    "eO2R": [{"station_id": "A", "reading": 9, "error": 0}],
+    "eS0L": [{"station_id": "A", "reading": 10, "error": 0}],
+    "eS0R": [{"station_id": "A", "reading": 8, "error": 0}],
+    "eS1L": [{"station_id": "A", "reading": 10, "error": 0}],
+    "eS1R": [{"station_id": "A", "reading": 11, "error": 0}],
+    "eS2L": [{"station_id": "A", "reading": 10, "error": 0}],
+    "eS2R": [{"station_id": "A", "reading": 10, "error": 0}],
+    "eS3L": [{"station_id": "A", "reading": 10, "error": 0}],
+    "eS3R": [{"station_id": "A", "reading": 10, "error": 0}],
+    "eS4L": [{"station_id": "A", "reading": 10, "error": 0}],
+    "eS4R": [{"station_id": "A", "reading": 9, "error": 0}],
+    "eT1O1L": [{"station_id": "A", "reading": 5, "error": 0}],
+    "eT1O1R": [{"station_id": "A", "reading": 10, "error": 0}],
+    "eT1O2L": [{"station_id": "B", "reading": 14, "error": 0}],
+    "eT1O2R": [{"station_id": "A", "reading": 10, "error": 0}],
+    "eT1O3L": [{"station_id": "A", "reading": 11, "error": 0}],
+    "eT1O3R": [{"station_id": "A", "reading": 6, "error": 0}],
+    "eT2O1L": [{"station_id": "A", "reading": 5, "error": 0}],
+    "eT2O1R": [{"station_id": "A", "reading": 10, "error": 0}],
+    "eT2O2L": [{"station_id": "B", "reading": 14, "error": 0}],
+    "eT2O2R": [{"station_id": "A", "reading": 9, "error": 0}],
+    "eD1": [{"station_id": "B", "reading": 10, "error": 0}],
+    "eD2": [{"station_id": "B", "reading": 14, "error": 0}]
+  },
+  "panels": [
+    {"panel_id": "O1", "kind": "old", "left_edge": "eO1L", "right_edge": "eO1R"},
+    {"panel_id": "O2", "kind": "old", "left_edge": "eO2L", "right_edge": "eO2R"},
+    {"panel_id": "T1O1", "kind": "old", "left_edge": "eT1O1L", "right_edge": "eT1O1R"},
+    {"panel_id": "T1O2", "kind": "old", "left_edge": "eT1O2L", "right_edge": "eT1O2R"},
+    {"panel_id": "T1O3", "kind": "old", "left_edge": "eT1O3L", "right_edge": "eT1O3R"},
+    {"panel_id": "T2O1", "kind": "old", "left_edge": "eT2O1L", "right_edge": "eT2O1R"},
+    {"panel_id": "T2O2", "kind": "old", "left_edge": "eT2O2L", "right_edge": "eT2O2R"},
+    {"panel_id": "S0", "kind": "spare", "left_edge": "eS0L", "right_edge": "eS0R"},
+    {"panel_id": "S1", "kind": "spare", "left_edge": "eS1L", "right_edge": "eS1R"},
+    {"panel_id": "S2", "kind": "spare", "left_edge": "eS2L", "right_edge": "eS2R"},
+    {"panel_id": "S3", "kind": "spare", "left_edge": "eS3L", "right_edge": "eS3R"},
+    {"panel_id": "S4", "kind": "spare", "left_edge": "eS4L", "right_edge": "eS4R"}
+  ],
+  "shows": [
+    {
+      "show_id": "ex",
+      "tolerance": 1,
+      "positions": ["O1", "O2"],
+      "spares": [{"panel_id": "S0", "positions": [2]}]
+    },
+    {
+      "show_id": "ex0",
+      "tolerance": 0,
+      "positions": ["O1", "O2"],
+      "spares": [{"panel_id": "S0", "positions": [2]}]
+    },
+    {
+      "show_id": "T1",
+      "tolerance": 0,
+      "positions": ["T1O1", "T1O2", "T1O3"],
+      "spares": [
+        {"panel_id": "S1", "positions": [2]},
+        {"panel_id": "S2", "positions": [3]},
+        {"panel_id": "S3", "positions": [2]}
+      ]
+    },
+    {
+      "show_id": "T2",
+      "tolerance": 0,
+      "positions": ["T2O1", "T2O2"],
+      "spares": [
+        {"panel_id": "S1", "positions": [2]},
+        {"panel_id": "S4", "positions": [2]}
+      ]
+    }
+  ]
+}

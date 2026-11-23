@@ -3,11 +3,15 @@
 Python 3.11 + SQLite 的试剂库存服务与运行库。只使用 `materials/719` 中的
 合成试剂和题定规则；不生成实验建议。
 
+仓库里还有第二套构建在同一库存库上的服务：**幕布测色复核与巡演装车**
+（`curtain/`，见下文）。
+
 ## 运行
 
 ```bash
-python3 -m unittest discover -s tests -v     # 46 个测试
+python3 -m unittest discover -s tests -v     # 83 个测试
 python3 demo_719.py                          # 跑 719 操作文件并打印可手算守恒
+python3 demo_curtain.py                      # 跑领用→测色复核→排幕→巡演车全链
 ```
 
 CLI 独立入口（`--db` 指向 SQLite 文件）：
@@ -111,3 +115,64 @@ python3 -m reagent --db store.db run-ops --inventory materials/719/inventory.jso
 至 100 瓶 / 200 运行已在 `ScaleTests` 覆盖。不做分布式事务、进程强杀、
 真实仪器通信或结果判读。终态收束依赖单库事务 + 保存回执：开始失败时在同一
 事务内释放全部预留并写终态原因，之后的重放只读该回执。
+
+---
+
+# 幕布测色复核与巡演装车 (curtain)
+
+`curtain/` 构建在同一 SQLite 库上（表名以 `curtain_` 前缀独立），
+参照色瓶的领用就是上面运行库的真实消耗：只有 `consumed` 的份数能背书参照，
+每份限背书一条；开封到期导致开始失败的领用不留下消耗，对应参照读数不能采信。
+
+```bash
+python3 -m reagent --db store.db run-ops --inventory materials/curtain/inventory.json \
+                                          --operations materials/curtain/operations_real.json
+python3 -m curtain --db store.db setup        --document materials/curtain/curtain.json --day 13
+python3 -m curtain --db store.db register-ref --ref-id ref-A --bottle REF --station A \
+                                              --reading 10 --error 0 --day 13
+python3 -m curtain --db store.db countersign  --day 13
+python3 -m curtain --db store.db seam         --revision REV --edge-a eO2L --edge-b eO1R
+python3 -m curtain --db store.db plan         --show ex --revision REV
+python3 -m curtain --db store.db seal-list    --list-id tour-list --revision REV \
+                                              --show T1 --show T2 \
+                                              --loaded S1 --loaded S2 --loaded S3 --loaded S4 --day 16
+python3 -m curtain --db store.db depart       --list-id tour-list --day 16
+python3 -m curtain --db store.db onsite       --list-id tour-list --present S1 --present S3
+python3 -m curtain --db store.db handover     --list-id tour-list --show T1 \
+                                              --arrangement primary --present S1 --day 17
+python3 -m curtain --db store.db locks
+```
+
+## 关键规则
+
+**联合解释**（`curtain/reconcile.py`）
+
+- 读数 = 真色阶 + 台偏差，记录给定的正负误差；所有真值、偏差共用一组整数解释。
+- 令 `ô_s = -o_s` 后每条记录都是差分约束 `x_v - x_u <= w`：可行域的最紧
+  `t_a - t_b` 上界恰为最短路 `D[b][a]`，故 `min = -D[a][b]`、`max = D[b][a]`，
+  全为整数。两块布边各自算区间再相减会丢掉共同仪表偏差（同台两条边
+  读 10/14，联合解释差恰为 4，区间相减会错算成 [1,7]）。
+- 核签（`countersign`）把当前全部有效记录冻成内容寻址的不可改修订，
+  附带一份同时满足所有记录的整数见证；记录冲突时修订保存一组不能同时
+  成立的原始读数（负环上的记录号），而不是笼统报错。
+
+**排幕**（`curtain/arrange.py`）
+
+- 相邻两边必须在**每一种**可行解释下满足本场容差：
+  `max(|min|, |max|) <= tolerance`。
+- 每处保留旧幅或换一幅准许的备布；备布是实物、至多缝一次；只有标
+  `reversible` 的才能对调两边。目标是最少换幅（位置×选择×备布位掩码的
+  动态规划），平手任取；没有排法则明确报无法交幕。
+
+**巡演车**（`curtain/service.py`，采用中心联审方案）
+
+- 开演前只签一张实物装车单：每场的主排法和“少某一幅备布”时的替换单
+  都按实际装车的备幅封好；装车单内容列由触发器冻结，旧单原样留存。
+- 重新核准一条参照只会产生新修订、新装车单；旧单仍引用旧修订。
+- 车出库后没有测色台：`onsite` 是封好清单上的纯函数，凭车上实有备幅
+  回答挂哪套还是无法交幕；`handover` 交割即锁定所用实物，另一团再争
+  同一幅会被拒绝。
+
+小例规模 ≤6 台、9 个位置、12 幅备布；`demo_curtain.py` 本地跑通
+原库领用、测色复核、排幕三步和巡演交割，结尾用原 `query`/`conservation`
+复核同一数据库的库存查询。
