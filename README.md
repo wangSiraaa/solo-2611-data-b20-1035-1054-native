@@ -7,6 +7,9 @@
 | 课程等价目录 + 审核库 | `gradaudit.Store` / `python -m gradaudit ...` | SQLite 持久化目录、转入记录、要求、准备/确认/重开 |
 | 精确求解器 | `gradaudit.solver.solve` / `gradaudit solve` | 判定整体可行，可行时给出具体分配；不可行时给出各组独立最大点数 |
 | 独立验证器 | `gradaudit.verify.verify_plan[_document]` / `gradaudit verify` | **不调用求解器**，按输入逐条重核一个 `course-allocation/1` 方案 |
+| 学期计费 | `gradaudit.billing` / `gradaudit bill` | 按确认分配对学期阶梯价计费，签发/回查签名账单 |
+| 冲账补扣 | `gradaudit.reconcile` / `gradaudit reconcile` | 最小整笔冲回 + 逐户补扣，使各户到款恰等于新应收 |
+| 银行柜台 | `gradaudit.bank` / `gradaudit settle`、`bank-query` | 独立可重开的银行端台账，按参考号查询/复办、幂等防丢包 |
 
 四个公开 JSON 文档的字段含义即题面合同。目录**只**通过显式 `equivalences` 映射给出候选，绝不按课程名猜测。
 
@@ -172,4 +175,50 @@ python3 -m gradaudit list-candidates 1 X    # 独立列出候选及类别，不�
 
 `tests/test_gradaudit.py`（31 项）覆盖：候选显式不猜测、点数校验、组数上限；两份合法方案均接受、复用被拒且定位 R1、未知记录/非候选/类别不符/修订不符、点数只从记录读取、未用记录、额外字段；两组争一份、单组够整体不够、多候选与未分配、精确不可行的共享记录；修订冲突、旧修订可查、映射改变可行性；准备-确认-重开、拒收准备不可确认、仅导入新修订也会使确认 stale、外部方案同边界；以及 **200 个随机小实例与暴力枚举的可行性一致性交叉校验**（并校验每个可行解都能被验证器接受）。
 
+`tests/test_billing_bank.py`（20 项）覆盖：阶梯价按档计费与跨档拆分、免缴不占档、无关迟到材料不改先后、重开后前面记录改免缴致后者被重新计费；签名账单回查与差额；题面「整冲 P 再收乙 2」「乙上限 1 则零动作」；逐户边界；避开打穿另一账户上限的陷阱；最少流水；不可行零动作；整笔冲回/补扣；丢包后按同号复办仅一次；柜台独立重开与同号幂等；本地反向数不算银行退款；以及端到端「计费→冲账→到款恰等于新应收」。
+
+**总测试数 51 项。**
+
 规模合同：至 12 份记录、每份至多 3 候选、点数 1..6，均在 `solver.py` 中显式校验。不做排课、GPA 或先修。
+
+---
+
+## 8. 学期计费与银行冲账（`gradaudit.billing` / `gradaudit.reconcile` / `gradaudit.bank`）
+
+这一层在**已确认的分配**之上做两件事：按学期阶梯价算应付，再把银行实收拉平到新应付。
+
+### 8.1 计费合同 `semester-billing/1`
+```json
+{"format":"semester-billing/1","semester":"2024F",
+ "tiers":[{"up_to":3,"unit_price":2},{"up_to":null,"unit_price":1}],
+ "exempt_courses":["EXEMPT"],
+ "record_accounts":{"r":{"account_id":"JIA","sequence":1},"s":{"account_id":"YI","sequence":2}}}
+```
+* **只对已确认分配中的记录计费**；点数额从 `records` 读，方案自报点无效。
+* 选中本地课程出现在 `exempt_courses` → 免缴：**不占价档**、不计点数。
+* 计费记录按 `(sequence, record_id)` 排序占阶梯（先到先占）；无关材料迟到（免缴项、未用项、登记更晚的记录）不改变已有先后。
+* 阶梯是**边际/累进**的：每条记录按所占的每一档分别计费（横跨价档按档拆分）。每条账单行保存 `start_position/end_position/segments`，因此**前面的记录改免缴后，后面点数与账户都没变的记录也可能因前面空出价档而被重新计费**。
+
+### 8.2 签名账单 `semester-bill/1`
+`store.issue_semester_bill(request_id=..., semester=..., confirmation_id=None)`：
+* 固定当时的确认（默认取当前有效确认；`confirmation_id` 可显式指向旧确认）。
+* 落库后**永不修改**；`account_delta` 记与上一份已签账单的逐户差额，`previous_bill_id` 指向上份。
+* `signature = sha256(除 signature 外全部字段)`；`store.verify_semester_bill(bill_id)` 重算签名并**按原确认重新计价**比对，因此旧账单可按原确认回查。
+
+### 8.3 冲账规划 `bank-reconciliation/1`
+```python
+from gradaudit import parse_flows, parse_caps, plan_reconciliation
+plan = plan_reconciliation(new_accounts, flows, caps)
+```
+* 流水 `bank-flows/1` 每条有独立 `reference` 与按账户拆列的 `amounts`；**只能整笔原路冲回**。
+* 每户当前实收 `cur`、应收 `R`、追扣上限 `cap`，冲回该户合计 `rev` 后补扣 `d = R - cur + rev`，须 `0 ≤ d ≤ cap`，即 `L=max(0,cur-R) ≤ rev ≤ U=cur+cap-R`。
+* 在所有可行整笔冲回子集中取**最少流水数**；并列任选（稳定按 `reference` 定序）。不可行时 `feasible=False` 且**不给任何动作**（保留原状）。
+* `plan.bounds` 给出「先对各户分别算可留流水与可追扣边界」的结果；逐户边界与跨户相容由同一子集判定统一锁住。
+
+> 示例（题面）：r、s 各 2 点，甲乙付款；原收甲 4、乙 3；银行把甲 4+乙 1 并为流水 P，另收乙 2 为 Q。r 改免缴后应收甲 0、乙 4。乙追扣上限 2 → 唯一方案是**整冲 P，再向乙收 2**。若乙上限为 1，则无可行方案，零动作。
+
+### 8.4 银行柜台与执行
+* `gradaudit.bank.LocalBankCounter(db)` 是**银行端**持久台账，可独立重开；`query_reference(ref)` / `reissue(op_id)` 按参考号或同一 `operation_id` 查询真实回执。
+* `SettlementDesk(counter).execute(plan, scope=...)` 只执行**已定方案**：不可行→零动作；回包丢失→按同一 `operation_id` 复办同一动作，绝不改选方案。
+* 冲回只在柜台记一条银行侧冲正，**不能在经办处记一条本地反向数就当银行已退款**（`test_local_negative_is_not_a_bank_refund`）。
+* CLI：`reconcile`（只规划）、`settle`（真实复办，`--lose-response` 模拟丢包）、`bank-query <ref>`（重开后按参考号查实况）。

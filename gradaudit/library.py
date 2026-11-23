@@ -59,6 +59,13 @@ from .errors import (
     RevisionNotFoundError,
     SchemaError,
 )
+from .billing import (
+    bill_account_delta,
+    parse_billing_policy,
+    price_semester,
+    sign_bill_document,
+    verify_bill_signature,
+)
 from .model import (
     Catalog,
     Plan,
@@ -236,6 +243,31 @@ class Store:
                 kind TEXT NOT NULL,
                 detail_json TEXT NOT NULL,
                 at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS billing_policies (
+                semester TEXT NOT NULL,
+                content_hash TEXT NOT NULL,
+                doc_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (semester, content_hash)
+            );
+            CREATE TABLE IF NOT EXISTS semester_bills (
+                bill_id TEXT PRIMARY KEY,
+                semester TEXT NOT NULL,
+                student_id TEXT NOT NULL,
+                request_id TEXT NOT NULL,
+                confirmation_id TEXT,
+                sequence INTEGER NOT NULL,
+                doc_json TEXT NOT NULL,
+                signature TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS semester_bill_seq (
+                student_id TEXT NOT NULL,
+                semester TEXT NOT NULL,
+                next_seq INTEGER NOT NULL,
+                PRIMARY KEY (student_id, semester)
             );
             """
         )
@@ -793,6 +825,191 @@ class Store:
             "request_id": request_id,
             "reopened": row is not None,
             "reason": reason,
+        }
+
+    # =====================================================================
+    # semester billing: sign / re-price / re-read
+    # =====================================================================
+    def import_billing_policy(self, doc: Any) -> dict:
+        policy = parse_billing_policy(doc)
+        h = policy.content_hash()
+        with self._txn():
+            self.conn.execute(
+                "INSERT OR IGNORE INTO billing_policies(semester, content_hash, doc_json, created_at) VALUES (?,?,?,?)",
+                (policy.semester, h, json.dumps(doc, ensure_ascii=False, sort_keys=True), _now()),
+            )
+        return {"semester": policy.semester, "content_hash": h}
+
+    def _latest_policy(self, semester: str):
+        row = self.conn.execute(
+            "SELECT doc_json FROM billing_policies WHERE semester = ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
+            (semester,),
+        ).fetchone()
+        if row is None:
+            return None
+        return parse_billing_policy(json.loads(row["doc_json"]))
+
+    def _confirmation_assignment_map(self, confirmation: dict) -> Dict[str, str]:
+        """record_id -> chosen course_id from a stored confirmation plan."""
+        plan = confirmation["plan"]
+        out: Dict[str, str] = {}
+        for a in plan.get("assignments", []):
+            out[a["record_id"]] = a["course_id"]
+        return out
+
+    def _record_snapshot(self, records_revision: int) -> Records:
+        recs = self.get_records(records_revision)
+        if recs is None:
+            raise RevisionNotFoundError(
+                f"records revision {records_revision} is not imported", location="records_revision"
+            )
+        return recs
+
+    def _latest_bill_for(self, student_id: str, semester: str) -> Optional[dict]:
+        row = self.conn.execute(
+            "SELECT doc_json FROM semester_bills WHERE student_id = ? AND semester = ? "
+            "ORDER BY sequence DESC, rowid DESC LIMIT 1",
+            (student_id, semester),
+        ).fetchone()
+        return json.loads(row["doc_json"]) if row else None
+
+    def issue_semester_bill(
+        self,
+        *,
+        request_id: str,
+        semester: str,
+        confirmation_id: Optional[str] = None,
+    ) -> dict:
+        """Price the *confirmed* allocation and persist a signed bill.
+
+        The bill carries per-account receivable, each record's actually occupied
+        ladder span/segments, and the per-account delta against the previous
+        signed bill for the same student/semester (if any).  Old bills are
+        never mutated, so a superseded bill stays re-readable verbatim
+        (``旧账单须能按原确认回查``).
+        """
+        policy = self._latest_policy(semester)
+        if policy is None:
+            raise SchemaError(f"no billing policy imported for semester {semester!r}", location="semester")
+
+        # Locate the confirmation to bill.  Default: the live confirmation; if a
+        # specific confirmation is given, use it even if it has since been
+        # superseded (so an old bill can be checked against its original
+        # confirmation) but require it to belong to the request.
+        confs = self.list_confirmations(request_id)
+        if confirmation_id is not None:
+            matches = [c for c in confs if c["confirmation_id"] == confirmation_id]
+            if not matches:
+                raise NotPreparedError(
+                    f"confirmation {confirmation_id!r} not found for request {request_id!r}",
+                    location=confirmation_id,
+                )
+            conf = matches[0]
+        else:
+            live = [c for c in confs if c["reopened_at"] is None]
+            if not live:
+                raise NotPreparedError(
+                    f"request {request_id!r} has no live confirmation to bill", location=request_id
+                )
+            conf = live[-1]
+
+        records = self._record_snapshot(conf["records_revision"])
+        assignments = self._confirmation_assignment_map(conf)
+        bill = price_semester(policy, records, assignments)
+
+        body = bill.as_dict()
+        body.update(
+            {
+                "format": "semester-bill/1",
+                "request_id": request_id,
+                "confirmation_id": conf["confirmation_id"],
+                "catalog_revision": conf["catalog_revision"],
+                "records_revision": conf["records_revision"],
+                "requirements_revision": conf["requirements_revision"],
+            }
+        )
+        prev = self._latest_bill_for(bill.student_id, semester)
+        body["account_delta"] = bill_account_delta(
+            body["accounts"], prev["accounts"] if prev else None
+        )
+        body["previous_bill_id"] = prev.get("bill_id") if prev else None
+
+        with self._txn():
+            seq_row = self.conn.execute(
+                "SELECT next_seq FROM semester_bill_seq WHERE student_id = ? AND semester = ?",
+                (bill.student_id, semester),
+            ).fetchone()
+            seq = seq_row["next_seq"] if seq_row else 1
+            bill_id = f"{bill.student_id}:{semester}:{seq}"
+            # Bill identity is part of the signed body, so a verifier can
+            # recompute the signature from the stored document alone.
+            body["bill_id"] = bill_id
+            body["bill_sequence"] = seq
+            signed = sign_bill_document(body)
+            self.conn.execute(
+                "INSERT INTO semester_bills(bill_id, semester, student_id, request_id, confirmation_id, sequence, doc_json, signature, created_at) "
+                "VALUES (?,?,?,?,?,?,?,?,?)",
+                (
+                    bill_id, semester, bill.student_id, request_id, conf["confirmation_id"], seq,
+                    json.dumps(signed, ensure_ascii=False, sort_keys=True),
+                    signed["signature"], _now(),
+                ),
+            )
+            self.conn.execute(
+                "INSERT INTO semester_bill_seq(student_id, semester, next_seq) VALUES (?,?,?) "
+                "ON CONFLICT(student_id, semester) DO UPDATE SET next_seq = excluded.next_seq",
+                (bill.student_id, semester, seq + 1),
+            )
+            self._event(
+                request_id,
+                "bill_issued",
+                {
+                    "bill_id": bill_id,
+                    "semester": semester,
+                    "confirmation_id": conf["confirmation_id"],
+                    "sequence": seq,
+                },
+            )
+        return signed
+
+    def list_semester_bills(self, *, student_id: str, semester: str) -> List[dict]:
+        rows = self.conn.execute(
+            "SELECT doc_json FROM semester_bills WHERE student_id = ? AND semester = ? ORDER BY sequence, rowid",
+            (student_id, semester),
+        ).fetchall()
+        return [json.loads(r["doc_json"]) for r in rows]
+
+    def get_semester_bill(self, bill_id: str) -> dict:
+        row = self.conn.execute(
+            "SELECT doc_json FROM semester_bills WHERE bill_id = ?", (bill_id,)
+        ).fetchone()
+        if row is None:
+            raise RevisionNotFoundError(f"bill {bill_id!r} not found", location=bill_id)
+        return json.loads(row["doc_json"])
+
+    def verify_semester_bill(self, bill_id: str) -> dict:
+        """Re-check a stored bill's signature and re-price from its confirmation."""
+        doc = self.get_semester_bill(bill_id)
+        signed_ok = verify_bill_signature(doc)
+        confirmation_id = doc.get("confirmation_id")
+        confs = self.list_confirmations(doc["request_id"])
+        conf = next((c for c in confs if c["confirmation_id"] == confirmation_id), None)
+        if conf is None:
+            return {"bill_id": bill_id, "signature_valid": signed_ok, "confirmation_found": False}
+        policy = self._latest_policy(doc["semester"])
+        if policy is None:
+            return {"bill_id": bill_id, "signature_valid": signed_ok, "confirmation_found": True,
+                    "repriced_equal": False, "reason": "no policy for semester"}
+        records = self._record_snapshot(conf["records_revision"])
+        assignments = self._confirmation_assignment_map(conf)
+        repriced = price_semester(policy, records, assignments).as_dict()
+        return {
+            "bill_id": bill_id,
+            "signature_valid": signed_ok,
+            "confirmation_found": True,
+            "repriced_equal": repriced["accounts"] == doc["accounts"]
+            and repriced["lines"] == doc["lines"],
+            "accounts": doc["accounts"],
         }
 
     # =====================================================================

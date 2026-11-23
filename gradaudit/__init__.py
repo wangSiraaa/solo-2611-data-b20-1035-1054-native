@@ -22,6 +22,20 @@ Typical CLI use::
     python -m gradaudit history --request REQ1
 """
 
+from .billing import (
+    BILL_FORMAT,
+    BILLING_POLICY_FORMAT,
+    BillingPolicy,
+    RecordCharge,
+    SemesterBill,
+    Tier,
+    bill_account_delta,
+    bill_body,
+    parse_billing_policy,
+    price_semester,
+    sign_bill_document,
+    verify_bill_signature,
+)
 from .errors import (
     ConfirmationError,
     ConfirmationStaleError,
@@ -31,6 +45,23 @@ from .errors import (
     RevisionNotFoundError,
     SchemaError,
     VerificationError,
+)
+from .bank import (
+    BankError,
+    ExecutionResult,
+    LocalBankCounter,
+    Receipt,
+    ResponseLost,
+    SettlementDesk,
+)
+from .reconcile import (
+    AccountBounds,
+    BankFlow,
+    ReconciliationPlan,
+    account_bounds,
+    parse_caps,
+    parse_flows,
+    plan_reconciliation,
 )
 from .library import Store
 from .model import (
@@ -77,6 +108,34 @@ __all__ = [
     "NotPreparedError",
     "ConfirmationError",
     "ConfirmationStaleError",
+    # billing
+    "BillingPolicy",
+    "RecordCharge",
+    "SemesterBill",
+    "Tier",
+    "parse_billing_policy",
+    "price_semester",
+    "bill_body",
+    "sign_bill_document",
+    "verify_bill_signature",
+    "bill_account_delta",
+    "BILL_FORMAT",
+    "BILLING_POLICY_FORMAT",
+    # reconciliation
+    "AccountBounds",
+    "BankFlow",
+    "ReconciliationPlan",
+    "account_bounds",
+    "parse_caps",
+    "parse_flows",
+    "plan_reconciliation",
+    # bank counter
+    "BankError",
+    "ExecutionResult",
+    "LocalBankCounter",
+    "Receipt",
+    "ResponseLost",
+    "SettlementDesk",
 ]
 
 __version__ = "1.0.0"

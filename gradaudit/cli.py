@@ -20,8 +20,11 @@ import sys
 from typing import Any, Optional
 
 from .errors import GradAuditError
+from .bank import LocalBankCounter, SettlementDesk
 from .library import Store
 from .model import parse_catalog, parse_records, parse_requirements, parse_plan
+from .billing import bill_account_delta
+from .reconcile import parse_caps, parse_flows, plan_reconciliation
 from .solver import solve
 from .verify import verify_plan, verify_plan_document
 
@@ -165,6 +168,76 @@ def cmd_points(args) -> int:
 
 
 # --------------------------------------------------------------------------- #
+# billing / reconciliation
+# --------------------------------------------------------------------------- #
+def cmd_import_billing_policy(args) -> int:
+    with _store(args) as store:
+        _dump({"imported": "billing-policy", **store.import_billing_policy(_load(args.file))})
+    return 0
+
+
+def cmd_bill(args) -> int:
+    with _store(args) as store:
+        doc = store.issue_semester_bill(
+            request_id=args.request, semester=args.semester, confirmation_id=args.confirmation
+        )
+        _dump(doc)
+    return 0
+
+
+def cmd_bills(args) -> int:
+    with _store(args) as store:
+        _dump({"student_id": args.student, "semester": args.semester,
+               "bills": store.list_semester_bills(student_id=args.student, semester=args.semester)})
+    return 0
+
+
+def cmd_verify_bill(args) -> int:
+    with _store(args) as store:
+        result = store.verify_semester_bill(args.bill)
+        _dump(result)
+    return 0 if result.get("signature_valid") and result.get("repriced_equal", True) else 1
+
+
+def cmd_reconcile(args) -> int:
+    flows = parse_flows(_load(args.flows))
+    caps = parse_caps(_load(args.caps))
+    # Receivable comes from a stored signed bill.
+    with _store(args) as store:
+        bill = store.get_semester_bill(args.bill)
+    plan = plan_reconciliation(bill["accounts"], flows, caps)
+    _dump(plan.as_dict())
+    return 0 if plan.feasible else 1
+
+
+def cmd_settle(args) -> int:
+    flows = parse_flows(_load(args.flows))
+    caps = parse_caps(_load(args.caps))
+    with _store(args) as store:
+        bill = store.get_semester_bill(args.bill)
+    plan = plan_reconciliation(bill["accounts"], flows, caps)
+    counter = LocalBankCounter(args.bank_db)
+    try:
+        desk = SettlementDesk(counter, lose_responses=args.lose_response)
+        result = desk.execute(plan, scope=args.bill)
+    finally:
+        counter.close()
+    _dump({"plan": plan.as_dict(), "execution": result.as_dict()})
+    return 0 if result.executed else 1
+
+
+def cmd_bank_query(args) -> int:
+    counter = LocalBankCounter(args.bank_db)
+    try:
+        receipts = counter.query_reference(args.reference)
+        _dump({"reference": args.reference,
+               "receipts": [r.__dict__ for r in receipts]})
+    finally:
+        counter.close()
+    return 0
+
+
+# --------------------------------------------------------------------------- #
 # parser
 # --------------------------------------------------------------------------- #
 def build_parser() -> argparse.ArgumentParser:
@@ -252,6 +325,52 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("preparation_id")
     sp.add_argument("--db", default="gradaudit.sqlite3")
     sp.set_defaults(func=cmd_points)
+
+    # billing / reconciliation
+    sp = sub.add_parser("import-billing-policy", help="import a semester-billing/1 policy")
+    sp.add_argument("file")
+    sp.add_argument("--db", default="gradaudit.sqlite3")
+    sp.set_defaults(func=cmd_import_billing_policy)
+
+    sp = sub.add_parser("bill", help="price the confirmed allocation into a signed semester bill")
+    sp.add_argument("--request", required=True)
+    sp.add_argument("--semester", required=True)
+    sp.add_argument("--confirmation", default=None, help="bill this stored confirmation even if superseded")
+    sp.add_argument("--db", default="gradaudit.sqlite3")
+    sp.set_defaults(func=cmd_bill)
+
+    sp = sub.add_parser("bills", help="list signed bills for a student/semester")
+    sp.add_argument("student")
+    sp.add_argument("semester")
+    sp.add_argument("--db", default="gradaudit.sqlite3")
+    sp.set_defaults(func=cmd_bills)
+
+    sp = sub.add_parser("verify-bill", help="re-check a stored bill's signature and re-price")
+    sp.add_argument("bill")
+    sp.add_argument("--db", default="gradaudit.sqlite3")
+    sp.set_defaults(func=cmd_verify_bill)
+
+    sp = sub.add_parser("reconcile", help="plan whole-flow reversals + supplementary debits")
+    sp.add_argument("--bill", required=True)
+    sp.add_argument("--flows", required=True)
+    sp.add_argument("--caps", required=True)
+    sp.add_argument("--db", default="gradaudit.sqlite3")
+    sp.set_defaults(func=cmd_reconcile)
+
+    sp = sub.add_parser("settle", help="execute a reconcile plan at the local bank counter")
+    sp.add_argument("--bill", required=True)
+    sp.add_argument("--flows", required=True)
+    sp.add_argument("--caps", required=True)
+    sp.add_argument("--bank-db", default="gradaudit-bank.sqlite3")
+    sp.add_argument("--db", default="gradaudit.sqlite3")
+    sp.add_argument("--lose-response", action="store_true",
+                    help="simulate lost receipt packets (exercises idempotent re-issue)")
+    sp.set_defaults(func=cmd_settle)
+
+    sp = sub.add_parser("bank-query", help="query the bank counter by reference (survives re-open)")
+    sp.add_argument("reference")
+    sp.add_argument("--bank-db", default="gradaudit-bank.sqlite3")
+    sp.set_defaults(func=cmd_bank_query)
 
     return p
 
