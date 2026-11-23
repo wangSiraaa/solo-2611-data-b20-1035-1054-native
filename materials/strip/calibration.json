@@ -1,0 +1,17 @@
+{
+  "mold": {
+    "name": "M1",
+    "needle_axis": [[0, "left"], [1, "right"]],
+    "candidate_depths": {"left": [1, 2], "right": [0]}
+  },
+  "sheets": [
+    {
+      "sheet_id": "cal",
+      "cells": ["A", "B", "C", "D"],
+      "directions": ["L"],
+      "steps": 1,
+      "start": 0,
+      "observations": [["B", "punched"]]
+    }
+  ]
+}

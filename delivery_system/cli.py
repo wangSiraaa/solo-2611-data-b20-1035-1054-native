@@ -442,6 +442,133 @@ def cmd_demo(args: argparse.Namespace) -> int:
     return 0 if report["ok"] else 3
 
 
+def _load_calibration(path: str):
+    """Load a calibration JSON: a mold plus a list of proof sheets."""
+
+    from .folding import FoldPlan
+    from .needle_mold import NeedleMold, PunchSheet
+
+    with open(path, encoding="utf-8") as fh:
+        data = json.load(fh)
+    mold_data = data["mold"]
+    mold = NeedleMold(
+        name=str(mold_data.get("name", "mold")),
+        needle_axis=tuple(
+            (int(n), str(a)) for n, a in mold_data["needle_axis"]
+        ),
+        candidate_depths=tuple(
+            (str(a), tuple(int(d) for d in depths))
+            for a, depths in dict(mold_data["candidate_depths"]).items()
+        ),
+    )
+    sheets = [
+        PunchSheet(
+            sheet_id=str(item["sheet_id"]),
+            plan=FoldPlan(tuple(item["cells"]), tuple(item["directions"])),
+            steps=int(item["steps"]),
+            start=int(item.get("start", 0)),
+            observations=tuple(
+                (str(cell), str(verdict))
+                for cell, verdict in item.get("observations", [])
+            ),
+            pierce_count=item.get("pierce_count"),
+        )
+        for item in data["sheets"]
+    ]
+    return mold, sheets
+
+
+def cmd_fold_show(args: argparse.Namespace) -> int:
+    """Issue a fold-layer voucher for a legal intermediate step."""
+
+    from .folding import FoldPlan, FoldVoucher
+
+    cells = tuple(args.cells.split(","))
+    directions = tuple(args.fold.split(",")) if args.fold else ()
+    plan = FoldPlan(cells, directions)
+    voucher = FoldVoucher(plan, args.steps, start=args.start)
+    _emit(voucher.to_dict())
+    return 0
+
+
+def cmd_calibrate(args: argparse.Namespace) -> int:
+    """List every setting compatible with all proof sheets, or report a contradiction."""
+
+    from .needle_mold import compatible_settings
+
+    mold, sheets = _load_calibration(args.calibration)
+    compatible = compatible_settings(sheets, mold)
+    _emit(
+        {
+            "mold": mold.to_dict(),
+            "sheets": len(sheets),
+            "compatible_settings": compatible,
+            "contradictory": not compatible,
+        }
+    )
+    return 0 if compatible else 3
+
+
+def cmd_seal_handoff(args: argparse.Namespace) -> int:
+    """Seal a calibration handoff (roster or conditions) and write it out."""
+
+    from .handoff import build_handoff
+
+    mold, sheets = _load_calibration(args.calibration)
+    handoff = build_handoff(sheets, mold, mode=args.mode)
+    os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
+    with open(args.out, "w", encoding="utf-8") as fh:
+        json.dump(handoff.to_dict(), fh, ensure_ascii=False, indent=2)
+        fh.write("\n")
+    _emit(
+        {
+            "mode": handoff.mode,
+            "path": args.out,
+            "evidence_sha256": handoff.evidence_sha256,
+            "settings": len(handoff.compatible_settings),
+        }
+    )
+    return 0
+
+
+def cmd_judge_order(args: argparse.Namespace) -> int:
+    """Judge an order against retained calibration and/or a sealed handoff."""
+
+    from .handoff import handoff_from_dict, replay_order
+    from .folding import FoldPlan
+    from .needle_mold import WorkOrder, judge_work_order
+
+    order = WorkOrder(
+        order_id=args.order_id,
+        plan=FoldPlan(tuple(args.cells.split(",")), tuple(args.fold.split(","))),
+        steps=args.steps,
+        start=args.start,
+        must_punch=tuple(args.punch.split(",")) if args.punch else (),
+        must_intact=tuple(args.intact.split(",")) if args.intact else (),
+    )
+    if args.handoff:
+        with open(args.handoff, encoding="utf-8") as fh:
+            handoff = handoff_from_dict(json.load(fh))
+        result = replay_order(handoff, order)
+        _emit(result.to_dict())
+        return 0 if result.judgment and result.judgment.verdict == "go" else 3
+
+    mold, sheets = _load_calibration(args.calibration)
+    judgment = judge_work_order(order, sheets, mold)
+    _emit(judgment.to_dict())
+    return 0 if judgment.verdict == "go" else 3
+
+
+def cmd_calibration_demo(args: argparse.Namespace) -> int:
+    """Run the strip window-flower calibration worked example."""
+
+    from .calibration_demo import run_calibration_demo
+
+    report = run_calibration_demo()
+    _emit(report)
+    return 0 if report["ok"] else 3
+
+
 # ----------------------------------------------------------------------
 # parser
 # ----------------------------------------------------------------------
@@ -517,6 +644,34 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--operations", required=True)
 
     add("demo", cmd_demo, "run the end-to-end materials/753 demo")
+
+    sp = add("fold-show", cmd_fold_show, "issue a fold-layer voucher")
+    sp.add_argument("cells", help="comma-separated cell names, e.g. A,B,C,D")
+    sp.add_argument("--fold", default="", help="comma-separated creases, e.g. L,R")
+    sp.add_argument("--steps", type=int, default=0, help="how many creases to fold")
+    sp.add_argument("--start", type=int, default=0, help="leftmost needle position")
+
+    sp = add("calibrate", cmd_calibrate, "list settings compatible with proof sheets")
+    sp.add_argument("--calibration", required=True, help="calibration JSON")
+
+    sp = add("seal-handoff", cmd_seal_handoff, "seal a calibration handoff package")
+    sp.add_argument("--calibration", required=True, help="calibration JSON")
+    sp.add_argument("--mode", choices=["roster", "conditions"], default="roster")
+    sp.add_argument("--out", required=True, help="output handoff JSON path")
+
+    sp = add("judge-order", cmd_judge_order, "judge an order from calibration or handoff")
+    sp.add_argument("order_id")
+    sp.add_argument("--cells", required=True, help="comma-separated cell names")
+    sp.add_argument("--fold", required=True, help="comma-separated creases")
+    sp.add_argument("--steps", type=int, required=True)
+    sp.add_argument("--start", type=int, default=0)
+    sp.add_argument("--punch", default="", help="comma-separated must-punch cells")
+    sp.add_argument("--intact", default="", help="comma-separated must-intact cells")
+    grp = sp.add_mutually_exclusive_group(required=True)
+    grp.add_argument("--calibration", help="calibration JSON (sheets retained)")
+    grp.add_argument("--handoff", help="sealed handoff JSON (sheets withdrawn)")
+
+    add("calibration-demo", cmd_calibration_demo, "run the strip calibration worked example")
     return p
 
 

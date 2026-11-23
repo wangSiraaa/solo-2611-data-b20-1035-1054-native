@@ -29,9 +29,15 @@ delivery_system/
   coverage.py            条目评估 + 精确覆盖区间 DP + 失败诊断
   delivery_repository.py 译文条目、覆盖计划、不可变发布包（独立 SQLite）
   package_io.py          translation-package/1 写入与结构/覆盖校验
+  folding.py             纸条折叠引擎：正反层序、左/右合拢、折层凭单
+  fold_operations.py     折法绑定译块的操作标（旧标不可移用）
+  needle_mold.py         可调针模、穿孔仿真、校样反推、订单判定
+  handoff.py             封样后的校准交接（清册 / 脱敏条件两种）
+  calibration_demo.py    长条窗花读样 + 针模校准端到端复现
   cli.py / __main__.py   命令行
   demo.py                materials/753 端到端复现（调用官方 package_reader.py）
 tests/test_delivery.py   20 个测试：覆盖、过期、重组、不可变、规模
+tests/test_calibration.py 36 个测试：折叠、操作标、校准、订单、共轴、交接
 ```
 
 ## 两侧的实质逻辑
@@ -82,6 +88,63 @@ content_sha256/created_at/source_release`。包一旦写入即不可变：同 id
 | 读旧包 PACK1 | 仍为 S1@1..S4@1 与旧译文 id/文本 |
 
 `package_reader.py` 被以子进程方式真实读取新旧两个包并校验输出。
+
+## 长条窗花读样 + 可调针模校准
+
+纸条分成 2 的幂个等宽格，每格有稳定名字，正反两面分清。源段版本上登记折纸方向与
+可折位置；译者为实际采用的译块交操作标（从当前纸幅左/右半提起、翻过中线压到另一半）。
+
+### 折叠与读样（folding.py）
+- `FoldPlan(cells, directions)`：`L` 把左半提起翻到右半，`R` 反之。被提起的一摞
+  整摞上下顺序与各格朝上面都翻转，合拢后从桌面左边重数位置。
+- 对 `A B C D` 左折后：左针从上至下 `B, C`，右针 `A, D`；右折后左针先碰 `D`。
+- `FoldVoucher` 对任一合法中间步出折层凭单：可按针位逐层问到原格与朝向
+  （`layers_at_needle`/`by_needle`），也可按原格问当前位置与层深（`locate`）。
+
+### 操作标（fold_operations.py）
+- 操作标绑定到具体译块和精确 `(segment_id, revision)`。源修订过期、译块不再属于
+  当前采用的精确覆盖、或折法/可折位置不符时判为不可用——**旧操作标不能移用**。
+
+### 针模与校准（needle_mold.py）
+- 每个台面针位固定接一个调节轴，同轴各针打相同层数；每轴给候选深度，0 停针；
+  机器从顶向下穿到调定层数，过底不再穿，未被纸覆盖处不留痕。
+- `compatible_settings` 要求**全部校样由同一副设置解释**；无解即校准自相矛盾。
+- `judge_order` 在**所有相容设置**上判定订单：
+  `go`（全部符合）/ `hold`（有的成有的坏，附两份设置与展开图）/ `return`
+  （全不符合）/ `contradiction`（校准本身无解）。
+- `naive_shared_axis_verdict` 演示反例：两针共用一轴时，按各自有利深度拼凑会
+  误放行；真正判定必须守住同轴同深度。
+
+### 校准交接（handoff.py）
+- `roster`：封样前展开各张折层，签出**所有相容设置清册**。工头可直接拿其中一副
+  打样；各轴独立时清册可能很大，重新校准必须换发清册。
+- `conditions`：按实测原格反追翻折，只交**去掉客户标识的轴深条件、整组孔数与
+  折样几何**（格名换成不透明标签），保留组数与共轴关联。工头仅凭它找一个能交和
+  一个不能交的实际设置。
+- 两种交接都能在**原校样撤走后复做订单**；校准证据自身矛盾时两种都拒发（停工）。
+
+### 复现（materials/strip + calibration-demo）
+
+```bash
+python3 -m delivery_system calibration-demo
+python3 -m delivery_system calibrate --calibration materials/strip/calibration.json
+python3 -m delivery_system judge-order o1 --cells A,B,C,D --fold L --steps 1 \
+    --punch B --intact C --calibration materials/strip/calibration.json   # hold
+python3 -m delivery_system seal-handoff --calibration materials/strip/calibration.json \
+    --mode conditions --out /tmp/h.json
+python3 -m delivery_system judge-order o2 --cells A,B,C,D --fold R --steps 1 \
+    --punch B --intact C --handoff /tmp/h.json                             # return
+```
+
+| 场景 | 结果 |
+|---|---|
+| 校样 B 有孔，左针 1/2 深、右针停 | 相容设置 2 副 |
+| `o1` 左折 B 有孔、C 完整 | `hold`（暂缓；1 层深可交、2 层深不可） |
+| `o2` 仅换右折（校准不变） | `return`（左针先碰 D，任一设置都交不出） |
+| `o3` 保留左折、C 不限 | `go`（两种设置均交得出） |
+| 两针共轴、各自拼凑深度 | 朴素法误判 `go`，真正判定 `return` |
+| 校样自相矛盾 | 两种交接均拒发（停工） |
+
 
 ## 规模与不扩平台
 

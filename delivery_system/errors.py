@@ -51,3 +51,19 @@ class NoCoverError(DeliveryError):
     def __init__(self, message: str, result: Optional[object] = None) -> None:
         super().__init__(message)
         self.result = result
+
+
+class InvalidFoldPlan(DeliveryError):
+    """A strip/fold diagram is malformed or inconsistent."""
+
+
+class InvalidMold(DeliveryError):
+    """A needle mold or geometry is malformed or does not fit the strip."""
+
+
+class CalibrationContradiction(DeliveryError):
+    """The calibration sheets cannot be explained by any single setting."""
+
+
+class HandoffError(DeliveryError):
+    """A calibration handoff package is malformed or fails its own checks."""

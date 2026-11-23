@@ -1,0 +1,4 @@
+{"order_id":"o1","cells":["A","B","C","D"],"directions":["L"],"steps":1,"start":0,"must_punch":["B"],"must_intact":["C"]}
+{"order_id":"o2","cells":["A","B","C","D"],"directions":["R"],"steps":1,"start":0,"must_punch":["B"],"must_intact":["C"]}
+{"order_id":"o3","cells":["A","B","C","D"],"directions":["L"],"steps":1,"start":0,"must_punch":["B"]}
+{"order_id":"shared-false","cells":["A","B","C","D"],"directions":["L"],"steps":1,"start":0,"must_punch":["A","B","D"],"must_intact":["C"],"mold":"shared"}
