@@ -1,14 +1,92 @@
-# 试剂库存服务与独立检验运行库 (719)
+# 试剂库存服务与独立检验运行库 (719) + 封签/底模/货运处置层 (720)
 
-Python 3.11 + SQLite 的试剂库存服务与运行库。只使用 `materials/719` 中的
+Python 3.11 + SQLite 的试剂库存服务、运行库，以及建在其上的具名封签、
+底模档案与货运站处置层。只使用 `materials/719`、`materials/720` 中的
 合成试剂和题定规则；不生成实验建议。
 
 ## 运行
 
 ```bash
-python3 -m unittest discover -s tests -v     # 46 个测试
+python3 -m unittest discover -s tests -v     # 80 个测试（46 试剂 + 34 封签）
 python3 demo_719.py                          # 跑 719 操作文件并打印可手算守恒
+python3 demo_720.py                          # 跑 720 封签/底模/货运全场景
 ```
+
+## 720 封签/底模/货运层
+
+模块在 `seals/` 下，复用 `reagent` 的运行状态机，不另存任何份数计数：
+
+| 模块 | 职责 |
+| --- | --- |
+| `seals/labels.py` | 只有成功 `started` 的运行、其 `consumed` 预留行和份内序号才能压签 |
+| `seals/matching.py` | 纯函数底模/印带还原：互补断纹、分段、废边凭据、反读、接带痕 |
+| `seals/archive.py` | 底模/凭据登记、印带版本化、来历查询与证据输出 |
+| `seals/freight.py` | 套装树归类与最低工时拆封/原扣/放行方案 |
+| `seals/workflow.py` | 持久化交割工作流、破封回执、丢包重开与幂等处置 |
+
+### 制签（`seals/labels.py`）
+
+- 标签外键指向具体 `consumed` 预留行加份内序号；一份泥一条签带，标签数永远
+  由已消耗行数推导，运行上没有私有计数器。
+- 仅预留（`reserved`）、过期未开成（运行转 `released`）都拒绝压签；重复扫码
+  返回原签并记一条 `duplicate` 审计，绝不多发。
+- 拒绝事件在独立事务里先落 `label_attempts` 再抛错，失败扫描不随业务回滚消失。
+- 重复 `start` 只回放 `runs.terminal_json`，不会再消耗一份。
+
+### 底模还原（`seals/matching.py`）
+
+- 相邻断纹逐格互补：印 `1` 只能盖模 `0`、印 `0` 只能盖模 `1`；`?` 是仍占一格
+  的磨损格，两边都能配。
+- 段内必须连续；两段之间只能凭当班废边凭据（`waste_vouchers`）跳过其区间内
+  的齿，段内不许跳齿。
+- 所有几何用递增模齿坐标表达；仅当定位孔整个脱落（`locating_hole=missing`）
+  才允许整条反读。
+- 接带痕是相邻齿之间的线：可读段覆盖到的每个邻接，底模与印带必须同时有痕或
+  同时无痕，否则输出让该定位失效的具体证据。
+- 同一底模同一段可被任意多只箱引用，不建任何唯一性约束。
+
+### 档案与版本（`seals/archive.py`）
+
+- 库存只压底模、发签用料和箱上实印条，绝不预填某箱装的是哪个炉批。
+- 旧签新读出几格必须另出一版（`imprint_versions`），旧版保留；查询返回
+  所有可能炉批、实模段、跳过的凭据位置，以及无解模的可见证据。
+
+### 货运处置（`seals/freight.py`）
+
+- 叶箱只有在「标签合法 + 至少一条可还原模段 + 可能炉批均不在点名名单」时才
+  能放行；任一不满足即 `PlanBlocked` 停单，无法查证不等于清白。
+- 方案穷举套装树上的两种选择：整柜原封扣回（一次收费、覆盖全部后代、后代不
+  再计费）或付拆封工时逐件处理；海关押封柜只能原扣。
+- 合同上限只统计被陪扣的**已证清白**叶箱；原扣柜后代在 `leaf_outcomes` 中
+  只出现一次。
+
+### 持久化交割（`seals/workflow.py`）
+
+- 柜先模式：锁整柜 → 按批准方案逐层破封 → 责任转给子柜/叶箱。
+- 破封回执先落库再回包；扫码器断电后 `close`/`reopen` 能认出已破具名封、已发
+  走的箱和待办动作。重复破封、重复处置都是幂等回放，同一只箱不会既发客户又
+  挂扣车。
+- 箱先模式：叶箱登记具名责任 → 合并进可原扣外柜；未封成的合并可撤回，已封成
+  的合并不可撤回，已发箱去向保留。
+
+### CLI
+
+```bash
+python3 -m seals --db store.db mold-register   --mold-id mA --batch A --pattern 00 --day 12
+python3 -m seals --db store.db voucher-register --voucher-id v1 --mold-id m4 --shift s1 \
+                 --first-tooth 1 --last-tooth 2 --min-skip 2 --max-skip 2
+python3 -m seals --db store.db label-issue     --label-id LX --box-id X --run-id r1 --day 11
+python3 -m seals --db store.db imprint-record  --imprint-id IX --label-id LX --imprint read.json --day 12
+python3 -m seals --db store.db reconstruct     --imprint-id IX
+python3 -m seals --db store.db plan            --plan-doc plan.json
+python3 -m seals --db store.db workflow --wf-op open --workflow-id w1 --day 13
+```
+
+规模约束：每案至多 20 条印签、每块底模 40 齿、3 层箱、两辆虚构货车，均有校验。
+
+---
+
+## 719 试剂库存服务
 
 CLI 独立入口（`--db` 指向 SQLite 文件）：
 

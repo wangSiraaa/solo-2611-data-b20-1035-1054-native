@@ -1,0 +1,15 @@
+{
+  "named_batches": ["A"],
+  "max_co_returned_clear": 1,
+  "trucks": ["truck-1", "truck-2"],
+  "nodes": [
+    {"node_id": "CAB", "kind": "cabinet", "customs_locked": false},
+    {"node_id": "X", "kind": "leaf", "parent_id": "CAB", "label_id": "LX"},
+    {"node_id": "Y", "kind": "leaf", "parent_id": "CAB", "label_id": "LY"}
+  ],
+  "costs": {
+    "sealed_return": {"CAB": 4},
+    "unseal": {"CAB": 1},
+    "leaf_charge": 2
+  }
+}
