@@ -83,3 +83,33 @@ class BatchAtomicityError(GradAuditError):
     """A batch transition could not be applied atomically (none applied)."""
 
     code = "batch_atomicity"
+
+
+class TermError(GradAuditError):
+    """Terminology-office operation failed (unknown pair, bad approval, ...)."""
+
+    code = "terminology"
+
+
+class SheetError(GradAuditError):
+    """A master sheet cannot be built from the current confirmation state."""
+
+    code = "master_sheet"
+
+
+class PressError(GradAuditError):
+    """A press job or form stock violates the issuance contract."""
+
+    code = "press"
+
+
+class PackageError(GradAuditError):
+    """A sealed press package is invalid, voided, or tampered with."""
+
+    code = "package"
+
+
+class CounterStateError(GradAuditError):
+    """The simulated counter refused an action in the current session state."""
+
+    code = "counter_state"

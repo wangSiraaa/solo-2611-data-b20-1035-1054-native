@@ -25,11 +25,16 @@ Typical CLI use::
 from .errors import (
     ConfirmationError,
     ConfirmationStaleError,
+    CounterStateError,
     GradAuditError,
     NotPreparedError,
+    PackageError,
+    PressError,
     RevisionConflictError,
     RevisionNotFoundError,
     SchemaError,
+    SheetError,
+    TermError,
     VerificationError,
 )
 from .library import Store
@@ -48,6 +53,21 @@ from .model import (
 )
 from .solver import MasterResult, GroupOutcome, solve, single_group_max
 from .verify import VerifyResult, verify_plan, verify_plan_document
+
+# certificate-issuance subsystem (registry sheet / terminology / press / counter)
+from .sheet import MasterSheet, SheetRow, build_master_sheet
+from .terms import TermOffice, TermPair, check_naming, explain_naming, solve_namings
+from .press import (
+    POINTS_CHANNEL,
+    FormSpec,
+    PressFailure,
+    PressPlan,
+    RecipientSpec,
+    check_distribution,
+    plan_press,
+    simulate_press,
+)
+from .counter import Counter, RegistryOffice, office_from_permit
 
 __all__ = [
     "Store",
@@ -77,6 +97,31 @@ __all__ = [
     "NotPreparedError",
     "ConfirmationError",
     "ConfirmationStaleError",
+    "TermError",
+    "SheetError",
+    "PressError",
+    "PackageError",
+    "CounterStateError",
+    # issuance subsystem
+    "MasterSheet",
+    "SheetRow",
+    "build_master_sheet",
+    "TermOffice",
+    "TermPair",
+    "check_naming",
+    "solve_namings",
+    "explain_naming",
+    "POINTS_CHANNEL",
+    "FormSpec",
+    "RecipientSpec",
+    "PressPlan",
+    "PressFailure",
+    "simulate_press",
+    "check_distribution",
+    "plan_press",
+    "RegistryOffice",
+    "Counter",
+    "office_from_permit",
 ]
 
 __version__ = "1.0.0"

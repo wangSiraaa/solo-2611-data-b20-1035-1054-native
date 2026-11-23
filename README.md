@@ -8,13 +8,16 @@
 | 精确求解器 | `gradaudit.solver.solve` / `gradaudit solve` | 判定整体可行，可行时给出具体分配；不可行时给出各组独立最大点数 |
 | 独立验证器 | `gradaudit.verify.verify_plan[_document]` / `gradaudit verify` | **不调用求解器**，按输入逐条重核一个 `course-allocation/1` 方案 |
 
+在此之上还有一套**证明开具子系统**（见第 8 节）：注册处底单、术语室、出证柜与两岗交接。
+
 四个公开 JSON 文档的字段含义即题面合同。目录**只**通过显式 `equivalences` 映射给出候选，绝不按课程名猜测。
 
-材料在 `materials/725/`，演示在 `examples/demo.py`，测试在 `tests/`。
+材料在 `materials/725/`，演示在 `examples/demo.py` 与 `examples/press_demo.py`，测试在 `tests/`。
 
 ```bash
-python3 -m unittest discover -s tests -v     # 31 个测试
-python3 examples/demo.py                      # 全流程演示
+python3 -m unittest discover -s tests -v     # 54 个测试
+python3 examples/demo.py                      # 审核全流程演示
+python3 examples/press_demo.py                # 出证全流程演示
 ```
 
 ---
@@ -172,4 +175,40 @@ python3 -m gradaudit list-candidates 1 X    # 独立列出候选及类别，不�
 
 `tests/test_gradaudit.py`（31 项）覆盖：候选显式不猜测、点数校验、组数上限；两份合法方案均接受、复用被拒且定位 R1、未知记录/非候选/类别不符/修订不符、点数只从记录读取、未用记录、额外字段；两组争一份、单组够整体不够、多候选与未分配、精确不可行的共享记录；修订冲突、旧修订可查、映射改变可行性；准备-确认-重开、拒收准备不可确认、仅导入新修订也会使确认 stale、外部方案同边界；以及 **200 个随机小实例与暴力枚举的可行性一致性交叉校验**（并校验每个可行解都能被验证器接受）。
 
+`tests/test_press.py`（23 项）覆盖开具子系统：底单只含已用记录、点数取自钉住修订、stale 拒绝出单、外部确认同路径、八行上限；词对逐行核/合法替代/跨组无解解释/同课两译/异课重名；红词学籍在上可办、撤红后蓝词单独可发但两联不能同发、全透备联两词皆不可、混色词对只漏外文也拦、误发判定、规模上限；封包全流程（验实物/压写/撕联/停机/接班续发/回单不泄密/注册处复核截停色道）、同册不再压、篡改包拒收、破损作废重封、许可模式柜员自配。
+
 规模合同：至 12 份记录、每份至多 3 候选、点数 1..6，均在 `solver.py` 中显式校验。不做排课、GPA 或先修。
+
+---
+
+## 8. 证明开具子系统（注册处底单 / 术语室 / 出证柜 / 交接）
+
+校际办沿用 gradaudit 的正式学分确认；注册处、术语室、出证柜是三个分开的岗位。学历证明**只压写一次**。
+
+```python
+from gradaudit import (RegistryOffice, TermOffice, Counter, FormSpec,
+                       RecipientSpec, plan_press, build_master_sheet)
+```
+
+### 底单（`gradaudit/sheet.py`）
+* `build_master_sheet(store, request_id)` 只从**当前有效确认**出单；确认已 stale 则拒绝（须先重新确认）。
+* 每行保留 `record_id`、确认单上选中的本地课程与归组；**点数从确认钉住的转入记录修订读取**。未用记录不进入底单。
+* 校外系统提交并获确认的另一种分配走同一条路（`prepare_audit` 本就接受任何通过独立验证的方案），按其实际选择出单。
+* 每份底单至多 **8 条学分行**。
+
+### 术语室（`gradaudit/terms.py`）
+* 每门课可登记若干获准词对；每对注明中文名、外文名、**各自预登记的色道**（两半可走不同色道）以及**可在哪些组使用**。批准可撤可复，全部留痕（`term_events`）。
+* 全册用词规则：① 每行用词对须获准于该行归组；② 同一课程跨组出现须用**同一词对**且其实际出现的每个组都批准；③ 两门不同课程不得印成同一完整词对。
+* `check_naming` 逐行核一套叫法（能拒"同课两译"与"重名"）；`solve_namings` 给出合法替代；`explain_naming` 解释"单行均有词却全册无解"（定位到跨组无共同词对的课程或被逼重名的词文）。
+
+### 出证柜（`gradaudit/press.py`）
+* 每单位按记录指明必见/严禁字段（`zh`/`fl`/`pts`）；**任一禁见字段留下一项字迹即误发**，其余字段允许带出。
+* 色道：每种获准词对的中外文各用预登记色道，点数共用一条 `PTS` 道。每张具名联登记收件人、`shows`（能显）、`blocks`（截停）；不显色也可能截停。一次压下整张底单，自顶向下：能显就留下完整字段，随后若截停则下方各联都收不到该道。
+* `plan_press` 判定能否办齐（每单位从至多 **2 张备联**挑一张、至多 **6 个收件人**、全叠同用一套词）：能则给出实物序号、叠放顺序、各联真实留下的字段和值；不能则指出挡住办理的用词或分联要求（`PressFailure.reasons` 定位到单位/记录/字段）。
+* 回单只含该收件人自己联上的字迹，保密字段不会经回单再泄露。
+
+### 交接（`gradaudit/counter.py`）
+* **封包模式**：注册处为本次登记的纸号选定词面与整叠顺序，签发 HMAC 封好的压写指令（`RegistryOffice.seal_package`）；柜员 `verify_physicals` 验实物后 `press` 落印。开印前一联破损 → `report_damaged` 作废旧包 → `reseal_after_damage` 换备联重新封包；作废包不能再用。
+* **许可模式**：`issue_permit` 签发限于本次实际课程的用词许可（含跨行约束：同课同词、异课不重名、词对覆盖每个实际组），柜员据眼前实物联自行配栈选词（`office_from_permit` + `plan_press`）。只给逐行获准名单会漏掉前两条约束。
+* 一次压写后若已撕走头联、回单未登记便停机：接班柜员从本地压机留存的实物号与动作回执 `resume` 继续分发余联、登记回单；**同一底单不能再压一套**（`receive_package` 拒绝）。有权的注册处可 `review_press` 复核当时各联截停了哪些色道。
+* 演示：`python3 examples/press_demo.py`（本地模拟柜 + SQLite 纸件记录）。
