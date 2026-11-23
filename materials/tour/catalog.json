@@ -1,0 +1,24 @@
+{
+  "format": "classification-catalog/1",
+  "revision": "G1",
+  "nodes": [
+    {"id": "ROOT", "name": "全部复制币"},
+    {"id": "A", "name": "铸期甲"},
+    {"id": "B", "name": "铸期乙"},
+    {"id": "C", "name": "铸期丙"},
+    {"id": "A1", "name": "甲期子类一"},
+    {"id": "A2", "name": "甲期子类二"},
+    {"id": "B1", "name": "乙期子类"},
+    {"id": "X", "name": "跨期交叉类"}
+  ],
+  "edges": [
+    ["A", "ROOT"],
+    ["B", "ROOT"],
+    ["C", "ROOT"],
+    ["A1", "A"],
+    ["A2", "A"],
+    ["B1", "B"],
+    ["X", "A"],
+    ["X", "B"]
+  ]
+}

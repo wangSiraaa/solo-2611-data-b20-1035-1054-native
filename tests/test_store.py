@@ -517,5 +517,35 @@ class ConcurrencyTests(unittest.TestCase):
         self.assertEqual(result["cut"], store.current_cut().as_dict())
 
 
+class CutReplayTests(unittest.TestCase):
+    def setUp(self):
+        self.store = fresh_store(self)
+
+    def test_load_facts_at_cut_includes_withdrawn_final_revision(self):
+        cut_before = self.store.current_cut()
+        self.store.withdraw("T1", 1, request_id="wd-t1")
+        cut_after = self.store.current_cut()
+        active = {f.ticket_id for f in self.store.load_facts_at_cut(cut_after)}
+        # The withdrawn ticket is absent from both the active cut replay and
+        # the live active view, but its final revision survives in the
+        # withdrawal lookup for downstream consumers such as the scale office.
+        self.assertNotIn("T1", active)
+        self.assertNotIn(
+            "T1", {f.ticket_id for f in self.store._load_active_facts_current()}
+        )
+        withdrawn = self.store.withdrawn_tickets_at_cut(cut_after)
+        self.assertIn("T1", withdrawn)
+        self.assertEqual(withdrawn["T1"].amount, 100)
+        # An earlier cut predates the withdrawal and shows nothing withdrawn.
+        self.assertEqual(self.store.withdrawn_tickets_at_cut(cut_before), {})
+
+    def test_load_facts_at_zero_watermark_is_empty(self):
+        from cs.store import Cut
+
+        empty_cut = Cut(catalog_revision="G1", fact_revision="F0", fact_watermark=0)
+        self.assertEqual(self.store.load_facts_at_cut(empty_cut), [])
+        self.assertEqual(self.store.withdrawn_tickets_at_cut(empty_cut), {})
+
+
 if __name__ == "__main__":
     unittest.main()

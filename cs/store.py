@@ -802,6 +802,58 @@ class Store:
             if int(r["active"]) == 1
         ]
 
+    def load_facts_at_cut(self, snapshot: Cut) -> list[Fact]:
+        """Replay every ticket revision visible at ``snapshot``.
+
+        The returned list mirrors the cut's fact watermark, including the
+        last revision of withdrawn tickets (their ``active`` state is not
+        carried by :class:`Fact`; callers that need it use
+        :meth:`withdrawn_tickets_at_cut`).  Used by downstream consumers such
+        as the weighing room, which must keep withdrawn rows out of a plate
+        while still being able to explain why the row was dropped.
+        """
+
+        if snapshot.fact_watermark == 0:
+            return []
+        resolved = self._watermark_seq(snapshot.fact_watermark)
+        if resolved is None:
+            raise ConflictError(
+                f"unknown fact watermark {snapshot.fact_watermark}"
+            )
+        seq, revision = resolved
+        if revision != snapshot.fact_revision:
+            raise ConflictError("snapshot fact revision does not match its watermark")
+        return self._load_facts_at_seq(seq)
+
+    def withdrawn_tickets_at_cut(self, snapshot: Cut) -> dict[str, Fact]:
+        """Tickets whose final revision at the cut was a withdrawal."""
+
+        if snapshot.fact_watermark == 0:
+            return {}
+        resolved = self._watermark_seq(snapshot.fact_watermark)
+        if resolved is None:
+            raise ConflictError(
+                f"unknown fact watermark {snapshot.fact_watermark}"
+            )
+        commits = self.conn.execute(
+            "SELECT ticket_id, revision, amount, classes, active "
+            "FROM fact_commits WHERE created_seq <= ? ORDER BY commit_id",
+            (resolved[0],),
+        ).fetchall()
+        latest: dict[str, sqlite3.Row] = {}
+        for commit in commits:
+            latest[commit["ticket_id"]] = commit
+        return {
+            tid: Fact(
+                ticket_id=tid,
+                revision=int(row["revision"]),
+                amount=int(row["amount"]),
+                classes=tuple(json.loads(row["classes"])),
+            )
+            for tid, row in latest.items()
+            if int(row["active"]) == 0
+        }
+
     def _watermark_seq(self, watermark: int) -> tuple[int, str] | None:
         row = self.conn.execute(
             "SELECT seq, revision FROM fact_watermarks WHERE watermark=?", (watermark,)

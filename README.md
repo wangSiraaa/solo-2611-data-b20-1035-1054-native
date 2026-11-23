@@ -3,6 +3,13 @@
 An independent catalog DAG and a fact summary library, with a single atomic
 publication cut. Python 3.11, standard library only, SQLite storage.
 
+> **Museum loan extension (`museum/`, see [MUSEUM.md](MUSEUM.md)):** the same
+> ticket library backs a weighing-room weight CSP (interval receipts,
+> deterministic witness masses, deletion-based conflict cores), a seal
+> lineage ledger for split/merge loan handovers and whole-trip write-off, and
+> three re-openable offline counters exchanging content-addressed spool
+> messages. Run `python3 museum_demo.py` for the end-to-end synthetic record.
+
 ```
 cs/
   catalog.py   pure DAG algorithms: cycle check, ancestors, descendants,

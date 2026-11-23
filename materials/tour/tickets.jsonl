@@ -1,0 +1,9 @@
+{"ticket_id":"W-A1","revision":1,"amount":3,"classes":["A1"]}
+{"ticket_id":"W-A2","revision":1,"amount":2,"classes":["A2"]}
+{"ticket_id":"W-B1","revision":1,"amount":4,"classes":["B1"]}
+{"ticket_id":"W-BX","revision":1,"amount":2,"classes":["X"]}
+{"ticket_id":"W-C1","revision":1,"amount":2,"classes":["C"]}
+{"ticket_id":"W-DUP","revision":1,"amount":1,"classes":["A1","B1"]}
+{"ticket_id":"W-GONE","revision":1,"amount":1,"classes":["C"]}
+{"ticket_id":"W-ONE-A","revision":1,"amount":1,"classes":["A1"]}
+{"ticket_id":"W-ONE-B","revision":1,"amount":1,"classes":["B1"]}
