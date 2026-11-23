@@ -237,6 +237,92 @@ def cmd_history(args: argparse.Namespace) -> int:
     return 0
 
 
+# ------------------------------------------------------ exhibition rights ----
+
+
+def _load_dataset(args: argparse.Namespace):
+    from . import dataset
+
+    return dataset.load(args.dataset)
+
+
+def cmd_license(args: argparse.Namespace) -> int:
+    ds = _load_dataset(args)
+    edges = ds.edges
+    if args.delete_edge:
+        child, parent = args.delete_edge
+        edges = [e for e in edges if e != (child, parent)]
+    clearance = ds.license_for(args.ticket, edges=edges)
+    _dump(clearance.as_dict())
+    return 0
+
+
+def cmd_check(args: argparse.Namespace) -> int:
+    from . import dataset as dsmod
+
+    ds = _load_dataset(args)
+    scen = ds.scenario(args.scenario)
+    pub = dsmod.initial_public(ds, scen)
+    labels_out = []
+    for label in ds.label_objects(scen):
+        labels_out.append(
+            {
+                "label": label.id,
+                "compositions": [
+                    dsmod.check_composition(ds, label, comp, pub).as_dict()
+                    for comp in label.compositions
+                ],
+            }
+        )
+    _dump({"scenario": args.scenario, "labels": labels_out})
+    return 0
+
+
+def cmd_solve(args: argparse.Namespace) -> int:
+    from . import dataset as dsmod
+    from . import exhibit
+
+    ds = _load_dataset(args)
+    scen = ds.scenario(args.scenario)
+    res = dsmod.batch(ds, scen)
+    out = {
+        "scenario": args.scenario,
+        "status": res.status,
+        "order": res.order,
+        "solved": [s.as_dict() for s in res.solved],
+        "diagnostics": res.diagnostics,
+        "public_after": {o: [list(c) for c in cells] for o, cells in res.public_after.items()},
+    }
+    if args.ascii and res.delivered:
+        for item in res.solved:
+            out.setdefault("ascii", []).append(
+                {
+                    "label": item.label_id,
+                    "art": exhibit.render_check(
+                        item.composition, item.check,
+                        panel=_label_panel(ds, scen, item.label_id),
+                        reserved=_label_reserved(ds, scen, item.label_id),
+                        originals=ds.originals,
+                    ),
+                }
+            )
+    _dump(out)
+    return 0
+
+
+def _raw_label(scen: dict[str, Any], label_id: str) -> dict[str, Any]:
+    return next(l for l in scen["labels"] if l["id"] == label_id)
+
+
+def _label_panel(ds, scen, label_id):
+    raw = _raw_label(scen, label_id)
+    return (int(raw["panel"][0]), int(raw["panel"][1]))
+
+
+def _label_reserved(ds, scen, label_id):
+    return {tuple(c) for c in _raw_label(scen, label_id).get("reserved", [])}
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m cs",
@@ -291,6 +377,27 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("history", help="show committed events")
     p.set_defaults(func=cmd_history)
+
+    # -- exhibition rights ------------------------------------------------
+    p = sub.add_parser("license", help="clear rights for one ticket at the dataset cut")
+    p.add_argument("dataset", help="exhibition-rights dataset JSON")
+    p.add_argument("ticket", help="ticket id")
+    p.add_argument(
+        "--delete-edge", nargs=2, metavar=("CHILD", "PARENT"),
+        help="evaluate against a catalog with this edge removed",
+    )
+    p.set_defaults(func=cmd_license)
+
+    p = sub.add_parser("check", help="check every composition of a scenario")
+    p.add_argument("dataset")
+    p.add_argument("scenario")
+    p.set_defaults(func=cmd_check)
+
+    p = sub.add_parser("solve", help="solve a scenario's batch preferences")
+    p.add_argument("dataset")
+    p.add_argument("scenario")
+    p.add_argument("--ascii", action="store_true", help="include panel art for shipped labels")
+    p.set_defaults(func=cmd_solve)
 
     return parser
 

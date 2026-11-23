@@ -1,0 +1,171 @@
+{
+  "format": "exhibition-rights/1",
+  "use": "exhibit",
+  "caps": {"branches": 4, "labels": 8, "compositions": 4},
+  "catalog": {
+    "format": "classification-catalog/1",
+    "revision": "G1",
+    "nodes": [
+      {"id": "R", "name": "全部"},
+      {"id": "A", "name": "办件"},
+      {"id": "B", "name": "办件"},
+      {"id": "L", "name": "交叉子类"},
+      {"id": "X", "name": "巡展申请"},
+      {"id": "Y", "name": "另一申请"}
+    ],
+    "edges": [
+      ["A", "R"],
+      ["B", "R"],
+      ["L", "A"],
+      ["L", "B"],
+      ["X", "B"],
+      ["X", "R"],
+      ["Y", "R"]
+    ]
+  },
+  "originals": [
+    {"id": "O1", "name": "一行四格", "rows": 1, "cols": 4},
+    {"id": "O2", "name": "两行三格", "rows": 2, "cols": 3}
+  ],
+  "tickets": [
+    {"ticket_id": "T-X", "original": "O1", "direct_class": "X", "holders": ["H1"]},
+    {"ticket_id": "T-Z", "original": "O1", "direct_class": "X", "holders": ["H1", "H2"]},
+    {"ticket_id": "T-U", "original": "O2", "direct_class": "L", "holders": ["H1"]},
+    {"ticket_id": "T-Y", "original": "O2", "direct_class": "Y", "holders": ["H1"]},
+    {"ticket_id": "T-HOLD", "original": "O1", "direct_class": "X", "holders": ["H1", "H9"]}
+  ],
+  "terms": [
+    {"node": "R", "holder": "H1", "original": "O1",
+     "rects": [[0, 0, 0, 2]], "attribution": ["甲"],
+     "protections": [[[0, 0], [0, 1], [0, 2]]]},
+    {"node": "B", "holder": "H1", "original": "O1",
+     "rects": [[0, 0, 0, 3]], "attribution": ["甲"],
+     "protections": [[[0, 0], [0, 1], [0, 2]]]},
+    {"node": "R", "holder": "H2", "original": "O1",
+     "rects": [[0, 0, 0, 2]], "attribution": ["乙"],
+     "protections": [[[0, 0], [0, 1], [0, 2]]]},
+    {"node": "A", "holder": "H1", "original": "O2",
+     "rects": [[0, 0, 0, 1]], "attribution": ["甲"],
+     "protections": [[[0, 0], [0, 1]]]},
+    {"node": "B", "holder": "H1", "original": "O2",
+     "rects": [[1, 0, 1, 2]], "attribution": ["甲"],
+     "protections": [[[1, 0], [1, 1]]]},
+    {"node": "R", "holder": "H1", "original": "O2",
+     "rects": [[0, 0, 1, 2]], "attribution": ["甲"],
+     "protections": [[[0, 0], [0, 1], [1, 0], [1, 1]]]}
+  ],
+  "scenarios": [
+    {
+      "id": "A-worked",
+      "title": "小例：署名留足，偏好先取2再取3；2会补全禁组，实际只能展3",
+      "ticket": "T-X",
+      "initial_public": {"O1": [[0, 0], [0, 1]]},
+      "labels": [
+        {"id": "LA", "app": 1, "branch": "二馆",
+         "signature": 1, "panel": [1, 2], "reserved": [],
+         "compositions": [
+           {"id": "LA-c1", "blocks": [{"original": "O1", "rect": [0, 2, 0, 2], "at": [0, 0]}]},
+           {"id": "LA-c2", "blocks": [{"original": "O1", "rect": [0, 3, 0, 3], "at": [0, 0]}]}
+         ]}
+      ]
+    },
+    {
+      "id": "C-emblem",
+      "title": "仍用原权属，只把唯一署名格放不可挪的馆徽，两种构图都不能发",
+      "ticket": "T-X",
+      "initial_public": {"O1": [[0, 0], [0, 1]]},
+      "labels": [
+        {"id": "LC", "app": 1, "branch": "二馆",
+         "signature": 1, "panel": [1, 2], "reserved": [[0, 1]],
+         "compositions": [
+           {"id": "LC-c1", "blocks": [{"original": "O1", "rect": [0, 2, 0, 2], "at": [0, 0]}]},
+           {"id": "LC-c2", "blocks": [{"original": "O1", "rect": [0, 3, 0, 3], "at": [0, 0]}]}
+         ]}
+      ]
+    },
+    {
+      "id": "D-joint",
+      "title": "空记录起步：两馆各交孤立看合法的订单，合起来会补全禁组",
+      "ticket": "T-X",
+      "initial_public": {"O1": []},
+      "labels": [
+        {"id": "D1", "app": 1, "branch": "三馆",
+         "signature": 1, "panel": [1, 4], "reserved": [],
+         "compositions": [
+           {"id": "D1-c1", "blocks": [{"original": "O1", "rect": [0, 0, 0, 1], "at": [0, 0]}]}
+         ]},
+        {"id": "D2", "app": 2, "branch": "四馆",
+         "signature": 1, "panel": [1, 4], "reserved": [],
+         "compositions": [
+           {"id": "D2-c1", "blocks": [{"original": "O1", "rect": [0, 2, 0, 2], "at": [0, 0]}]}
+         ]}
+      ]
+    },
+    {
+      "id": "I-preference",
+      "title": "整批须全交，按申请号取字典序最优的可行偏好序列",
+      "ticket": "T-X",
+      "initial_public": {"O1": [[0, 0], [0, 1]]},
+      "labels": [
+        {"id": "I1", "app": 1, "branch": "一馆",
+         "signature": 1, "panel": [1, 2], "reserved": [],
+         "compositions": [
+           {"id": "I1-c1", "blocks": [{"original": "O1", "rect": [0, 2, 0, 2], "at": [0, 0]}]},
+           {"id": "I1-c2", "blocks": [{"original": "O1", "rect": [0, 3, 0, 3], "at": [0, 0]}]}
+         ]},
+        {"id": "I2", "app": 2, "branch": "二馆",
+         "signature": 1, "panel": [1, 2], "reserved": [],
+         "compositions": [
+           {"id": "I2-c1", "blocks": [{"original": "O1", "rect": [0, 3, 0, 3], "at": [0, 0]}]},
+           {"id": "I2-c2", "blocks": [{"original": "O1", "rect": [0, 2, 0, 2], "at": [0, 0]}]}
+         ]}
+      ]
+    },
+    {
+      "id": "H-identity",
+      "title": "翻转、换馆都不算换原片：面板格映射回原坐标",
+      "ticket": "T-X",
+      "initial_public": {"O1": []},
+      "labels": [
+        {"id": "H1", "app": 1, "branch": "一馆",
+         "signature": 1, "panel": [2, 2], "reserved": [],
+         "compositions": [
+           {"id": "H1-c1", "blocks": [{"original": "O1", "rect": [0, 2, 0, 2], "at": [0, 0]}]}
+         ]},
+        {"id": "H2", "app": 2, "branch": "二馆",
+         "signature": 1, "panel": [2, 2], "reserved": [],
+         "compositions": [
+           {"id": "H2-c1", "blocks": [{"original": "O1", "rect": [0, 2, 0, 3], "flip": true, "at": [0, 0]}]}
+         ]}
+      ]
+    },
+    {
+      "id": "M-intersection",
+      "title": "不同持权方许可区域取交集：H1经B得0-3，H2经R得0-2，交集0-2",
+      "ticket": "T-Z",
+      "initial_public": {"O1": []},
+      "labels": [
+        {"id": "M1", "app": 1, "branch": "一馆",
+         "signature": 2, "panel": [2, 4], "reserved": [],
+         "compositions": [
+           {"id": "M1-c1", "blocks": [{"original": "O1", "rect": [0, 1, 0, 3], "at": [0, 0]}]},
+           {"id": "M1-c2", "blocks": [{"original": "O1", "rect": [0, 0, 0, 1], "at": [0, 0]}]}
+         ]}
+      ]
+    },
+    {
+      "id": "U-union",
+      "title": "同一持权方并列节点取并集：A许可上排、B许可下排，并集含下排右格",
+      "ticket": "T-U",
+      "initial_public": {"O2": []},
+      "labels": [
+        {"id": "U1", "app": 1, "branch": "一馆",
+         "signature": 1, "panel": [2, 4], "reserved": [],
+         "compositions": [
+           {"id": "U1-c1", "blocks": [{"original": "O2", "rect": [1, 2, 1, 2], "at": [0, 0]}]},
+           {"id": "U1-c2", "blocks": [{"original": "O2", "rect": [0, 0, 0, 0], "at": [0, 0]}]}
+         ]}
+      ]
+    }
+  ]
+}

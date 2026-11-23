@@ -9,10 +9,20 @@ cs/
                shortest witness paths, coverage explanation
   store.py     SQLite store: revisions, atomic bundles, cut-pinned queries,
                immutable products
+  rights.py    rights clearance over the catalog DAG: per-holder terms,
+               specificity reduction, parallel-part union, holder intersection,
+               holds, cell geometry
+  exhibit.py   exhibition-label feasibility: crops, flips, signature placement,
+               cumulative protection, batch preference solving, ASCII art
+  delivery.py  append-only public record, central baked masters (receipts vs.
+               retained samples), branch plates + vouchers, audit trace
+  dataset.py   loader for the offline exhibition-rights dataset
   cli.py       command line entry point (`python -m cs`)
 tests/         unit tests (python -m unittest discover -s tests)
 demo.py        runs materials/721 end to end and feeds consumer.py
 showcase.py    walks through every required scenario on the diamond
+rights_demo.py walks the exhibition-rights dataset through clearance, batch
+               solving, both delivery models and an audit
 ```
 
 ## Quick start
@@ -38,6 +48,11 @@ python3 materials/721/consumer.py out/overlap.json
 runs the provided read-only `consumer.py` against both. `python3 showcase.py`
 prints the diamond, multi-label-same-parent, parent-and-child, same-name,
 withdraw/reopen, cycle rejection and recovery scenarios.
+
+`python3 rights_demo.py` exercises the exhibition-rights layer against
+`materials/rights/dataset.json` (see `materials/rights/README.md`): rights
+clearance, per-composition feasibility, batch preference solving, both delivery
+models and an audit trace.
 
 ## Catalog model
 
@@ -135,3 +150,9 @@ multi-label counting, same-name distinct ids, cut-pinned re-reads, immutable
 products, revision rules, withdraw/reopen, atomic bundle rejection (including
 catalog rollback when a fact revision conflicts), and a concurrent reader
 that must observe only pre- or post-bundle state.
+
+It also covers rights clearance (specificity reduction, parallel-node union,
+cross-holder intersection, holds, edge deletion shrinking a licence),
+composition feasibility (signature placement with reserved cells, flip
+cell-mapping, protection completion), whole-batch preference solving, and both
+delivery models including the joint-redemption guard and persistent audit.
