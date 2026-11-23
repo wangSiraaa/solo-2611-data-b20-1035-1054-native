@@ -1,0 +1,6 @@
+{
+  "format": "course-catalog/1",
+  "revision": 2,
+  "courses": [{"course_id": "PU_G2", "categories": ["G"]}],
+  "equivalences": {"X": ["PU_G2"], "Y": ["PU_G2"]}
+}

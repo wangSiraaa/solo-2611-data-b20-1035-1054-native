@@ -7,14 +7,17 @@
 | 课程等价目录 + 审核库 | `gradaudit.Store` / `python -m gradaudit ...` | SQLite 持久化目录、转入记录、要求、准备/确认/重开 |
 | 精确求解器 | `gradaudit.solver.solve` / `gradaudit solve` | 判定整体可行，可行时给出具体分配；不可行时给出各组独立最大点数 |
 | 独立验证器 | `gradaudit.verify.verify_plan[_document]` / `gradaudit verify` | **不调用求解器**，按输入逐条重核一个 `course-allocation/1` 方案 |
+| 校际互认实验室 | `gradaudit.exchange` / `gradaudit exchange-*` | 对定向换版通道做**全称**兼容判定，兼容则签单、不兼容则给实在反例 |
+| 换版排期 | `gradaudit.scheduler` / `gradaudit schedule` | 把通道四版本组合译成先后/同夜/禁止条件，与夜容量一起排出可执行日历 |
 
 四个公开 JSON 文档的字段含义即题面合同。目录**只**通过显式 `equivalences` 映射给出候选，绝不按课程名猜测。
 
-材料在 `materials/725/`，演示在 `examples/demo.py`，测试在 `tests/`。
+材料在 `materials/725/`（互认/换版示例在 `materials/725/exchange/`），演示在 `examples/`，测试在 `tests/`。
 
 ```bash
-python3 -m unittest discover -s tests -v     # 31 个测试
-python3 examples/demo.py                      # 全流程演示
+python3 -m unittest discover -s tests -v     # 60 个测试
+python3 examples/demo.py                      # 原审核库全流程演示
+python3 examples/exchange_demo.py             # 互认 + 换版排期演示
 ```
 
 ---
@@ -173,3 +176,105 @@ python3 -m gradaudit list-candidates 1 X    # 独立列出候选及类别，不�
 `tests/test_gradaudit.py`（31 项）覆盖：候选显式不猜测、点数校验、组数上限；两份合法方案均接受、复用被拒且定位 R1、未知记录/非候选/类别不符/修订不符、点数只从记录读取、未用记录、额外字段；两组争一份、单组够整体不够、多候选与未分配、精确不可行的共享记录；修订冲突、旧修订可查、映射改变可行性；准备-确认-重开、拒收准备不可确认、仅导入新修订也会使确认 stale、外部方案同边界；以及 **200 个随机小实例与暴力枚举的可行性一致性交叉校验**（并校验每个可行解都能被验证器接受）。
 
 规模合同：至 12 份记录、每份至多 3 候选、点数 1..6，均在 `solver.py` 中显式校验。不做排课、GPA 或先修。
+
+`tests/test_exchange.py`（29 项）覆盖下节两组件，并含 **60 个随机小通道与朴素逐试单判定的一致性交叉校验**。
+
+---
+
+## 8. 校际互认实验室（`gradaudit exchange-*`）
+
+### 8.1 合同与范围
+
+* **换版范围** `exchange-scope/1`：准入的原校代码及各自允许的正整数点数、每份成绩最多记录条数、可用毕业要求份数。受小联盟/窗口规模约束：**至多 3 个外部代码、2 个可用点数、4 条记录、2 份要求**（`exchange.py` 显式校验）。
+
+```json
+{"format": "exchange-scope/1",
+ "external_courses": {"X": [1], "Y": [1]},
+ "max_records": 2, "max_requirements": 1}
+```
+
+* 一份**成绩（transcript）**就是该范围内的小多重集：记录 = (原校课程代码, 整条正整数点数)，代码可重复，记录 ID 在单人内不同（`records_for_transcript` 生成 `R1..`）。
+
+### 8.2 要测的命题（全称，而非抽样）
+
+定向通道 `发方 -> 收方` 在**固定的一对目录版本**上兼容，当且仅当对范围内**每一份**成绩 T 和**每一份**要求 R：
+
+```
+feasible(发方目录, T, R)  =>  feasible(收方目录, T, R)
+```
+
+收方用自己的目录、同一组要求**自行挑选**合法分配。范围很小，故实验室用 `check_compatibility` **穷举全部成绩**给出全称结论——不按同名课程猜、不按“每组各自够分”下结论。单组够分整体不够的情形由精确求解器自然覆盖（见 §3）。
+
+### 8.3 反例（witness）
+
+不兼容时给出一份**实在成绩**：
+
+* 发方有一个合法分配，且经**原库独立验证器** `verify_plan` 接受；
+* 收方**整体无解**，由 `solve` 精确证明（即便它可另选方案、即便某组单看够分）。
+
+```bash
+# 兼容则退出 0；不兼容退出 1 并在 JSON 中附 witness
+python3 -m gradaudit exchange-check \
+  --sender-catalog pu_new.json --receiver-catalog he_old.json \
+  --scope scope.json --requirements requirements_G.json
+
+# 每份成绩的原始判定表（发方接受? 收方接受?），供外部独立复核
+python3 -m gradaudit exchange-audit ...
+
+# 用原库从零重核一份 witness
+python3 -m gradaudit exchange-verify-witness --witness wit.json \
+  --sender-catalog pu_new.json --receiver-catalog he_old.json \
+  --requirements requirements_G.json
+```
+
+示例（浦校新发来的 `Y` 一点，河校旧目录只认 `X`）：
+
+```json
+"witness": {
+  "records": [{"record_id": "R1", "external_course": "Y", "points": 1}],
+  "sender":  {"feasible": true,  "assignments": [{"record_id": "R1", "course_id": "PU_G2", "group_id": "G"}], ...},
+  "receiver": {"feasible": false, "group_max_ignoring_other_groups": [...]}
+}
+```
+
+### 8.4 已签兼容单
+
+`exchange-sign` 或 `sign_channel_forms` 对一条通道的四种版本组合各签一份 `compatibility-form/1`，内容寻址（`content_hash` 覆盖除时间戳外的全部实质字段，改签即改哈希）。`CompatibilityStore` 落库归档，换窗口前可用 `find_forms` / `list_forms` 回看。
+
+---
+
+## 9. 换版排期（`gradaudit schedule`）
+
+### 9.1 输入
+
+`switch-problem/1`：每校 `old_catalog` / `new_catalog`、可选 `allowed_nights`（缺省=每夜可）；有向 `channels`；`nights` 与 `night_capacity`（整数或逐夜映射）；规模 **至多 8 校、6 夜**。排期只消费实验室签的四版本组合单（`Booklet`），**不**自造兼容结论；哈希不符的单记为 `stale`，缺失记为 `missing`。
+
+### 9.2 组合 → 条件
+
+对每条有向通道的四种组合：
+
+| 组合 | 含义 |
+| --- | --- |
+| `(o,o)` 或 `(n,n)` 假 | 起点/终点晨已断 → 无日历（附 witness） |
+| `(n,o)` 假、`(o,n)` 真 | 收方须不晚于发方切换 |
+| `(o,n)` 假、`(n,o)` 真 | 发方须不晚于收方切换 |
+| `(o,n)` 与 `(n,o)` 皆假 | 两端必须**同夜**切换 |
+
+排期把这些组合与每校可用夜、每夜容量一起，在“已切校集合”上做**逐夜精确 DP**；每批切换后的翌晨都核全部通道。找不到日历时，报告挡住它的期限、强制合换组（SCC）、通道见证或容量瓶颈。
+
+### 9.3 叙事示例对照
+
+* 浦校必须第 1 夜、河校第 2 夜、每夜一校：`Pu(new)->He(old)` 用 `Y 1` 反例拒绝 → 报 `order_deadline_conflict`，附该 witness。
+* 只把河校**旧目录经正式版本入口**补上 `Y`：原日历就走（`pu:1, he:2`）。
+* 保留最初四份目录、改成河校第 1 夜、浦校第 2 夜：原日历也能走（`he:1, pu:2`）。
+* 再加反向通道 `He->Pu`：两方向都在异版本组合断裂，闭合成**同夜**约束——两校可用夜无交集时不可行（`co_switch_deadline_conflict`），共享夜且容量够时可同夜（`co_switch_capacity` 检查）。
+
+```bash
+python3 -m gradaudit schedule-export-forms \
+  --problem problem.json --scope scope.json \
+  --requirements requirements_G.json --out forms.json
+python3 -m gradaudit schedule --problem problem.json --forms forms.json
+```
+
+`schedule` 退出码：`0` 有日历，`1` 无（附诊断/见证）。每校被计划恰好切换一次，同晚不分先后，绝无暂停通道过渡。
+

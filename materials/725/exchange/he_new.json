@@ -1,0 +1,6 @@
+{
+  "format": "course-catalog/1",
+  "revision": 2,
+  "courses": [{"course_id": "HE_G2", "categories": ["G"]}],
+  "equivalences": {"X": ["HE_G2"], "Y": ["HE_G2"]}
+}

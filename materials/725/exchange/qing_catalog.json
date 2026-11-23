@@ -1,0 +1,9 @@
+{
+  "format": "course-catalog/1",
+  "revision": 1,
+  "courses": [
+    {"course_id": "Q_A", "categories": ["A"]},
+    {"course_id": "Q_B", "categories": ["B"]}
+  ],
+  "equivalences": {"X": ["Q_A"], "Y": ["Q_B"]}
+}

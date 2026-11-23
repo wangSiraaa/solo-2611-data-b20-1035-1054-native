@@ -1,0 +1,6 @@
+{
+  "format": "exchange-scope/1",
+  "external_courses": {"X": [1], "Y": [1]},
+  "max_records": 2,
+  "max_requirements": 1
+}

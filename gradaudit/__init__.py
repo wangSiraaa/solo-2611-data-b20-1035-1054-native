@@ -6,6 +6,11 @@ Public entry points
 * :func:`gradaudit.solver.solve` -- exact feasibility solver.
 * :class:`Store` -- SQLite-backed catalog / records / requirements / audit
   preparation-confirmation library.
+* :func:`gradaudit.exchange.check_compatibility` -- universal, exhaustive
+  directed-channel compatibility testing with witnesses; :class:`CompatibilityForm`
+  / :class:`CompatibilityStore` for signed forms.
+* :func:`gradaudit.scheduler.schedule` -- exact switch calendar over directed
+  channels using signed forms, night availability and per-night capacity.
 
 Typical CLI use::
 
@@ -48,6 +53,33 @@ from .model import (
 )
 from .solver import MasterResult, GroupOutcome, solve, single_group_max
 from .verify import VerifyResult, verify_plan, verify_plan_document
+from .exchange import (
+    CompatibilityForm,
+    CompatibilityResult,
+    CompatibilityStore,
+    RequirementOutcome,
+    Scope,
+    audit_scope,
+    check_compatibility,
+    enumerate_transcripts,
+    parse_scope,
+    records_for_transcript,
+    sign_channel_forms,
+    sign_form,
+    verify_witness,
+)
+from .scheduler import (
+    Booklet,
+    CalendarResult,
+    Channel,
+    EdgeConstraint,
+    NightBatch,
+    School,
+    SwitchProblem,
+    derive_constraints,
+    parse_switch_problem,
+    schedule,
+)
 
 __all__ = [
     "Store",
@@ -77,6 +109,31 @@ __all__ = [
     "NotPreparedError",
     "ConfirmationError",
     "ConfirmationStaleError",
+    # exchange compatibility lab
+    "Scope",
+    "parse_scope",
+    "CompatibilityResult",
+    "RequirementOutcome",
+    "CompatibilityForm",
+    "CompatibilityStore",
+    "check_compatibility",
+    "audit_scope",
+    "enumerate_transcripts",
+    "records_for_transcript",
+    "sign_form",
+    "sign_channel_forms",
+    "verify_witness",
+    # switch scheduling
+    "Booklet",
+    "CalendarResult",
+    "Channel",
+    "EdgeConstraint",
+    "NightBatch",
+    "School",
+    "SwitchProblem",
+    "derive_constraints",
+    "parse_switch_problem",
+    "schedule",
 ]
 
 __version__ = "1.0.0"

@@ -1,0 +1,8 @@
+{
+  "request_id": "REQ_AB",
+  "revision": 1,
+  "groups": [
+    {"group_id": "GA", "allowed_categories": ["A"], "minimum_points": 3},
+    {"group_id": "GB", "allowed_categories": ["B"], "minimum_points": 3}
+  ]
+}

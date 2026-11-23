@@ -1,0 +1,103 @@
+{
+  "format": "switch-problem/1",
+  "nights": 2,
+  "night_capacity": 1,
+  "schools": [
+    {
+      "name": "pu",
+      "old_catalog": {
+        "format": "course-catalog/1",
+        "revision": 1,
+        "courses": [
+          {
+            "course_id": "PU_G1",
+            "categories": [
+              "G"
+            ]
+          }
+        ],
+        "equivalences": {
+          "X": [
+            "PU_G1"
+          ]
+        }
+      },
+      "new_catalog": {
+        "format": "course-catalog/1",
+        "revision": 2,
+        "courses": [
+          {
+            "course_id": "PU_G2",
+            "categories": [
+              "G"
+            ]
+          }
+        ],
+        "equivalences": {
+          "X": [
+            "PU_G2"
+          ],
+          "Y": [
+            "PU_G2"
+          ]
+        }
+      },
+      "allowed_nights": [
+        1
+      ]
+    },
+    {
+      "name": "he",
+      "old_catalog": {
+        "format": "course-catalog/1",
+        "revision": 1,
+        "courses": [
+          {
+            "course_id": "HE_G1",
+            "categories": [
+              "G"
+            ]
+          }
+        ],
+        "equivalences": {
+          "X": [
+            "HE_G1"
+          ]
+        }
+      },
+      "new_catalog": {
+        "format": "course-catalog/1",
+        "revision": 2,
+        "courses": [
+          {
+            "course_id": "HE_G2",
+            "categories": [
+              "G"
+            ]
+          }
+        ],
+        "equivalences": {
+          "X": [
+            "HE_G2"
+          ],
+          "Y": [
+            "HE_G2"
+          ]
+        }
+      },
+      "allowed_nights": [
+        2
+      ]
+    }
+  ],
+  "channels": [
+    {
+      "sender": "pu",
+      "receiver": "he"
+    },
+    {
+      "sender": "he",
+      "receiver": "pu"
+    }
+  ]
+}

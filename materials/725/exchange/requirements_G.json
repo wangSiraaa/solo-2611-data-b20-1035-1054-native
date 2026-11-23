@@ -1,0 +1,7 @@
+{
+  "request_id": "REQ_G",
+  "revision": 1,
+  "groups": [
+    {"group_id": "G", "allowed_categories": ["G"], "minimum_points": 1}
+  ]
+}

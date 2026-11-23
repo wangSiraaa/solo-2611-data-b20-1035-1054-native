@@ -24,6 +24,15 @@ from .library import Store
 from .model import parse_catalog, parse_records, parse_requirements, parse_plan
 from .solver import solve
 from .verify import verify_plan, verify_plan_document
+from .exchange import (
+    CompatibilityStore,
+    audit_scope,
+    check_compatibility,
+    parse_scope,
+    sign_form,
+    verify_witness,
+)
+from .scheduler import Booklet, parse_switch_problem, schedule
 
 
 def _load(path: str) -> Any:
@@ -165,6 +174,112 @@ def cmd_points(args) -> int:
 
 
 # --------------------------------------------------------------------------- #
+# exchange compatibility + switch scheduling
+# --------------------------------------------------------------------------- #
+def _catalog_pair(args) -> tuple:
+    return parse_catalog(_load(args.sender_catalog)), parse_catalog(_load(args.receiver_catalog))
+
+
+def _requirements_list(args):
+    return [parse_requirements(_load(p)) for p in args.requirements]
+
+
+def cmd_exchange_check(args) -> int:
+    sender, receiver = _catalog_pair(args)
+    scope = parse_scope(_load(args.scope))
+    reqs = _requirements_list(args)
+    result = check_compatibility(sender, receiver, reqs, scope)
+    _dump(result.as_dict())
+    return 0 if result.compatible else 1
+
+
+def cmd_exchange_audit(args) -> int:
+    sender, receiver = _catalog_pair(args)
+    scope = parse_scope(_load(args.scope))
+    reqs = _requirements_list(args)
+    rows = audit_scope(sender, receiver, reqs, scope)
+    violations = [r for r in rows if r["violation"]]
+    _dump({
+        "transcripts_examined": len(rows),
+        "violations": len(violations),
+        "rows": rows,
+    })
+    return 0 if not violations else 1
+
+
+def cmd_exchange_sign(args) -> int:
+    sender, receiver = _catalog_pair(args)
+    scope = parse_scope(_load(args.scope))
+    reqs = _requirements_list(args)
+    form = sign_form(
+        sender, receiver, reqs, scope,
+        sender_school=args.sender_school,
+        receiver_school=args.receiver_school,
+        sender_version=args.sender_version,
+        receiver_version=args.receiver_version,
+    )
+    doc = form.as_document()
+    doc["form_hash"] = form.content_hash()
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as fh:
+            json.dump(doc, fh, ensure_ascii=False, indent=2)
+            fh.write("\n")
+    if args.db:
+        with CompatibilityStore(args.db) as cs:
+            cs.save(form)
+    _dump(doc)
+    return 0 if form.compatible else 1
+
+
+def cmd_exchange_verify_witness(args) -> int:
+    sender, receiver = _catalog_pair(args)
+    requirement = parse_requirements(_load(args.requirements))
+    witness = _load(args.witness)
+    out = verify_witness(witness, sender, receiver, requirement)
+    _dump(out)
+    return 0 if out["witness_valid"] else 1
+
+
+def cmd_schedule(args) -> int:
+    problem = parse_switch_problem(_load(args.problem))
+    booklet = Booklet(_load(args.forms) if args.forms else [])
+    result = schedule(problem, booklet)
+    _dump(result.as_dict())
+    return 0 if result.feasible else 1
+
+
+def cmd_schedule_export(args) -> int:
+    """Re-derive the four version-combo forms of every channel in a problem."""
+    from .exchange import sign_channel_forms
+
+    problem = parse_switch_problem(_load(args.problem))
+    scope = parse_scope(_load(args.scope))
+    reqs = _requirements_list(args)
+    forms = []
+    out = {"forms": []}
+    for ch in problem.channels:
+        s = problem.schools[ch.sender]
+        r = problem.schools[ch.receiver]
+        signed = sign_channel_forms(
+            sender_school=s.name, receiver_school=r.name,
+            sender_old=s.old_catalog, sender_new=s.new_catalog,
+            receiver_old=r.old_catalog, receiver_new=r.new_catalog,
+            requirements_list=reqs, scope=scope,
+        )
+        for f in signed:
+            doc = f.as_document()
+            doc["form_hash"] = f.content_hash()
+            forms.append(doc)
+    out["forms"] = forms
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as fh:
+            json.dump(forms, fh, ensure_ascii=False, indent=2)
+            fh.write("\n")
+    _dump(out)
+    return 0
+
+
+# --------------------------------------------------------------------------- #
 # parser
 # --------------------------------------------------------------------------- #
 def build_parser() -> argparse.ArgumentParser:
@@ -252,6 +367,61 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("preparation_id")
     sp.add_argument("--db", default="gradaudit.sqlite3")
     sp.set_defaults(func=cmd_points)
+
+    # exchange compatibility lab
+    sp = sub.add_parser("exchange-check",
+                        help="universally certify/refute a directed channel at fixed versions")
+    sp.add_argument("--sender-catalog", required=True)
+    sp.add_argument("--receiver-catalog", required=True)
+    sp.add_argument("--scope", required=True)
+    sp.add_argument("--requirements", required=True, action="append",
+                    help="requirements JSON file (repeat up to the scope cap)")
+    sp.set_defaults(func=cmd_exchange_check)
+
+    sp = sub.add_parser("exchange-audit",
+                        help="per-transcript worksheet (sender accepts? receiver accepts?)")
+    sp.add_argument("--sender-catalog", required=True)
+    sp.add_argument("--receiver-catalog", required=True)
+    sp.add_argument("--scope", required=True)
+    sp.add_argument("--requirements", required=True, action="append")
+    sp.set_defaults(func=cmd_exchange_audit)
+
+    sp = sub.add_parser("exchange-sign",
+                        help="sign one compatibility form for a channel + version pair")
+    sp.add_argument("--sender-catalog", required=True)
+    sp.add_argument("--receiver-catalog", required=True)
+    sp.add_argument("--scope", required=True)
+    sp.add_argument("--requirements", required=True, action="append")
+    sp.add_argument("--sender-school", required=True)
+    sp.add_argument("--receiver-school", required=True)
+    sp.add_argument("--sender-version", required=True, choices=["old", "new"])
+    sp.add_argument("--receiver-version", required=True, choices=["old", "new"])
+    sp.add_argument("--out", help="write the signed form JSON here")
+    sp.add_argument("--db", help="also archive the form in this SQLite DB")
+    sp.set_defaults(func=cmd_exchange_sign)
+
+    sp = sub.add_parser("exchange-verify-witness",
+                        help="re-check a witness with the original library")
+    sp.add_argument("--witness", required=True)
+    sp.add_argument("--sender-catalog", required=True)
+    sp.add_argument("--receiver-catalog", required=True)
+    sp.add_argument("--requirements", required=True)
+    sp.set_defaults(func=cmd_exchange_verify_witness)
+
+    # switch scheduling
+    sp = sub.add_parser("schedule",
+                        help="find a switch calendar from signed compatibility forms")
+    sp.add_argument("--problem", required=True, help="switch-problem/1 JSON")
+    sp.add_argument("--forms", help="JSON list of signed compatibility forms")
+    sp.set_defaults(func=cmd_schedule)
+
+    sp = sub.add_parser("schedule-export-forms",
+                        help="sign all four version-combo forms for every channel")
+    sp.add_argument("--problem", required=True)
+    sp.add_argument("--scope", required=True)
+    sp.add_argument("--requirements", required=True, action="append")
+    sp.add_argument("--out", help="write the signed forms JSON list here")
+    sp.set_defaults(func=cmd_schedule_export)
 
     return p
 

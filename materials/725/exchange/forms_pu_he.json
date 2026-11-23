@@ -1,0 +1,214 @@
+[
+  {
+    "format": "compatibility-form/1",
+    "channel": {
+      "sender_school": "pu",
+      "receiver_school": "he"
+    },
+    "versions": {
+      "sender": "old",
+      "receiver": "old"
+    },
+    "sender_catalog_hash": "cd56befdffe8a47f07dcee72ba2c1c5e1180692cd2246cf2e3b8af9dab067026",
+    "receiver_catalog_hash": "0ffc701e656dd3ecdd18608991256997a2b27989712049ebb574bbc38caaca87",
+    "scope_hash": "6e12a21a02f812ddd9d0664c6792efdbd8c0c25c3892d986ceea92d16ec81a5f",
+    "requirements_hash": "c8c2d9dd2b9cf70c196c0ac866b61790db1a10263ea6c00dfaa8044868369d49",
+    "compatible": true,
+    "result": {
+      "compatible": true,
+      "transcripts_in_scope": 6,
+      "per_requirement": [
+        {
+          "request_id": "REQ_G",
+          "requirements_revision": 1,
+          "compatible": true,
+          "witness": null,
+          "transcripts_examined": 6
+        }
+      ],
+      "witness": null
+    },
+    "signed_at": "2026-11-23T06:12:22+00:00",
+    "form_hash": "beeab0128d0a6e931a44dce342a02d479083be70594855355743adbb651082de"
+  },
+  {
+    "format": "compatibility-form/1",
+    "channel": {
+      "sender_school": "pu",
+      "receiver_school": "he"
+    },
+    "versions": {
+      "sender": "old",
+      "receiver": "new"
+    },
+    "sender_catalog_hash": "cd56befdffe8a47f07dcee72ba2c1c5e1180692cd2246cf2e3b8af9dab067026",
+    "receiver_catalog_hash": "d5c815a421ac8c2ec84dbb458a57a0b0cf6976b753c5eff027001cc918a4006d",
+    "scope_hash": "6e12a21a02f812ddd9d0664c6792efdbd8c0c25c3892d986ceea92d16ec81a5f",
+    "requirements_hash": "c8c2d9dd2b9cf70c196c0ac866b61790db1a10263ea6c00dfaa8044868369d49",
+    "compatible": true,
+    "result": {
+      "compatible": true,
+      "transcripts_in_scope": 6,
+      "per_requirement": [
+        {
+          "request_id": "REQ_G",
+          "requirements_revision": 1,
+          "compatible": true,
+          "witness": null,
+          "transcripts_examined": 6
+        }
+      ],
+      "witness": null
+    },
+    "signed_at": "2026-11-23T06:12:22+00:00",
+    "form_hash": "c4e0dfcba5e57406da14d80f94f498f4f172c7120f945fbc4f7aa45d8d3df1c9"
+  },
+  {
+    "format": "compatibility-form/1",
+    "channel": {
+      "sender_school": "pu",
+      "receiver_school": "he"
+    },
+    "versions": {
+      "sender": "new",
+      "receiver": "old"
+    },
+    "sender_catalog_hash": "1f5fc375680d223c7286b70febd01b5fa190d8953256ede86e6136dffbdba6dd",
+    "receiver_catalog_hash": "0ffc701e656dd3ecdd18608991256997a2b27989712049ebb574bbc38caaca87",
+    "scope_hash": "6e12a21a02f812ddd9d0664c6792efdbd8c0c25c3892d986ceea92d16ec81a5f",
+    "requirements_hash": "c8c2d9dd2b9cf70c196c0ac866b61790db1a10263ea6c00dfaa8044868369d49",
+    "compatible": false,
+    "result": {
+      "compatible": false,
+      "transcripts_in_scope": 6,
+      "per_requirement": [
+        {
+          "request_id": "REQ_G",
+          "requirements_revision": 1,
+          "compatible": false,
+          "witness": {
+            "type": "transcript_witness",
+            "requirement": {
+              "request_id": "REQ_G",
+              "revision": 1
+            },
+            "records": [
+              {
+                "record_id": "R1",
+                "external_course": "Y",
+                "points": 1
+              }
+            ],
+            "sender": {
+              "feasible": true,
+              "assignments": [
+                {
+                  "record_id": "R1",
+                  "course_id": "PU_G2",
+                  "group_id": "G"
+                }
+              ],
+              "group_totals": {
+                "G": 1
+              },
+              "catalog_revision": 2,
+              "verified_by_original_library": true
+            },
+            "receiver": {
+              "feasible": false,
+              "catalog_revision": 1,
+              "group_max_ignoring_other_groups": [
+                {
+                  "group_id": "G",
+                  "minimum_points": 1,
+                  "max_ignoring_other_groups": 0,
+                  "individually_reachable": false
+                }
+              ],
+              "note": "no allocation satisfies all groups. groups[].max_ignoring_other_groups shows each group's best reachable total in isolation; a group reaching its minimum alone does not make the request feasible because a single record cannot be split or counted in two groups."
+            },
+            "explanation": "The sender has a legal allocation for this transcript (independently verified), but the receiver is globally infeasible even though it may choose any allocation and even if some group is reachable alone."
+          },
+          "transcripts_examined": 3
+        }
+      ],
+      "witness": {
+        "type": "transcript_witness",
+        "requirement": {
+          "request_id": "REQ_G",
+          "revision": 1
+        },
+        "records": [
+          {
+            "record_id": "R1",
+            "external_course": "Y",
+            "points": 1
+          }
+        ],
+        "sender": {
+          "feasible": true,
+          "assignments": [
+            {
+              "record_id": "R1",
+              "course_id": "PU_G2",
+              "group_id": "G"
+            }
+          ],
+          "group_totals": {
+            "G": 1
+          },
+          "catalog_revision": 2,
+          "verified_by_original_library": true
+        },
+        "receiver": {
+          "feasible": false,
+          "catalog_revision": 1,
+          "group_max_ignoring_other_groups": [
+            {
+              "group_id": "G",
+              "minimum_points": 1,
+              "max_ignoring_other_groups": 0,
+              "individually_reachable": false
+            }
+          ],
+          "note": "no allocation satisfies all groups. groups[].max_ignoring_other_groups shows each group's best reachable total in isolation; a group reaching its minimum alone does not make the request feasible because a single record cannot be split or counted in two groups."
+        },
+        "explanation": "The sender has a legal allocation for this transcript (independently verified), but the receiver is globally infeasible even though it may choose any allocation and even if some group is reachable alone."
+      }
+    },
+    "signed_at": "2026-11-23T06:12:22+00:00",
+    "form_hash": "c01763cf07100c8afebb951658dc5c6aec782ecd8d80ee2f0f1484ec7ab7dd38"
+  },
+  {
+    "format": "compatibility-form/1",
+    "channel": {
+      "sender_school": "pu",
+      "receiver_school": "he"
+    },
+    "versions": {
+      "sender": "new",
+      "receiver": "new"
+    },
+    "sender_catalog_hash": "1f5fc375680d223c7286b70febd01b5fa190d8953256ede86e6136dffbdba6dd",
+    "receiver_catalog_hash": "d5c815a421ac8c2ec84dbb458a57a0b0cf6976b753c5eff027001cc918a4006d",
+    "scope_hash": "6e12a21a02f812ddd9d0664c6792efdbd8c0c25c3892d986ceea92d16ec81a5f",
+    "requirements_hash": "c8c2d9dd2b9cf70c196c0ac866b61790db1a10263ea6c00dfaa8044868369d49",
+    "compatible": true,
+    "result": {
+      "compatible": true,
+      "transcripts_in_scope": 6,
+      "per_requirement": [
+        {
+          "request_id": "REQ_G",
+          "requirements_revision": 1,
+          "compatible": true,
+          "witness": null,
+          "transcripts_examined": 6
+        }
+      ],
+      "witness": null
+    },
+    "signed_at": "2026-11-23T06:12:22+00:00",
+    "form_hash": "1dbd4d926982543e9d3fa321a33a8f921bd09add6ba4f4b6187351d36ffd8ef2"
+  }
+]
