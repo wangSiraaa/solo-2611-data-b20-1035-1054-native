@@ -1,0 +1,341 @@
+{
+  "description": "hidden_pair",
+  "volumes": [
+    {
+      "volume_id": "戊",
+      "blocks": [
+        [
+          "开局",
+          "辨纹",
+          "收尾"
+        ]
+      ],
+      "flags": [
+        "red",
+        "mark",
+        "hidden_p"
+      ],
+      "visible_flags": [
+        "red"
+      ],
+      "keys": [
+        "试色",
+        "转",
+        "推"
+      ],
+      "initial_state": [],
+      "clauses": [
+        {
+          "segment_id": "开局",
+          "revision": 1,
+          "key": "试色",
+          "requires_on": [],
+          "requires_off": [
+            "red"
+          ],
+          "rewrite": [
+            [
+              "red",
+              true
+            ]
+          ],
+          "pattern": "红",
+          "locks": false
+        },
+        {
+          "segment_id": "开局",
+          "revision": 1,
+          "key": "转",
+          "requires_on": [],
+          "requires_off": [
+            "red"
+          ],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "开局",
+          "revision": 1,
+          "key": "推",
+          "requires_on": [],
+          "requires_off": [
+            "red"
+          ],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "辨纹",
+          "revision": 1,
+          "key": "试色",
+          "requires_on": [
+            "red"
+          ],
+          "requires_off": [
+            "mark"
+          ],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "辨纹",
+          "revision": 1,
+          "key": "转",
+          "requires_on": [
+            "red"
+          ],
+          "requires_off": [
+            "mark"
+          ],
+          "rewrite": [
+            [
+              "mark",
+              true
+            ],
+            [
+              "hidden_p",
+              true
+            ]
+          ],
+          "pattern": "方",
+          "locks": false
+        },
+        {
+          "segment_id": "辨纹",
+          "revision": 1,
+          "key": "推",
+          "requires_on": [
+            "red"
+          ],
+          "requires_off": [
+            "mark"
+          ],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "收尾",
+          "revision": 1,
+          "key": "试色",
+          "requires_on": [
+            "hidden_p",
+            "mark",
+            "red"
+          ],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "收尾",
+          "revision": 1,
+          "key": "转",
+          "requires_on": [
+            "hidden_p",
+            "mark",
+            "red"
+          ],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "收尾",
+          "revision": 1,
+          "key": "推",
+          "requires_on": [
+            "hidden_p",
+            "mark",
+            "red"
+          ],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "星",
+          "locks": false
+        }
+      ],
+      "acceptance": {
+        "label": "accept-all",
+        "required_on": [],
+        "required_off": [],
+        "forbidden": [
+          "!locked"
+        ]
+      }
+    },
+    {
+      "volume_id": "己",
+      "blocks": [
+        [
+          "开局",
+          "辨纹",
+          "收尾"
+        ]
+      ],
+      "flags": [
+        "red",
+        "mark",
+        "hidden_q"
+      ],
+      "visible_flags": [
+        "red"
+      ],
+      "keys": [
+        "试色",
+        "转",
+        "推"
+      ],
+      "initial_state": [],
+      "clauses": [
+        {
+          "segment_id": "开局",
+          "revision": 1,
+          "key": "试色",
+          "requires_on": [],
+          "requires_off": [
+            "red"
+          ],
+          "rewrite": [
+            [
+              "red",
+              true
+            ]
+          ],
+          "pattern": "红",
+          "locks": false
+        },
+        {
+          "segment_id": "开局",
+          "revision": 1,
+          "key": "转",
+          "requires_on": [],
+          "requires_off": [
+            "red"
+          ],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "开局",
+          "revision": 1,
+          "key": "推",
+          "requires_on": [],
+          "requires_off": [
+            "red"
+          ],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "辨纹",
+          "revision": 1,
+          "key": "试色",
+          "requires_on": [
+            "red"
+          ],
+          "requires_off": [
+            "mark"
+          ],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "辨纹",
+          "revision": 1,
+          "key": "转",
+          "requires_on": [
+            "red"
+          ],
+          "requires_off": [
+            "mark"
+          ],
+          "rewrite": [
+            [
+              "mark",
+              true
+            ],
+            [
+              "hidden_q",
+              true
+            ]
+          ],
+          "pattern": "方",
+          "locks": false
+        },
+        {
+          "segment_id": "辨纹",
+          "revision": 1,
+          "key": "推",
+          "requires_on": [
+            "red"
+          ],
+          "requires_off": [
+            "mark"
+          ],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "收尾",
+          "revision": 1,
+          "key": "试色",
+          "requires_on": [
+            "hidden_q",
+            "mark",
+            "red"
+          ],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "收尾",
+          "revision": 1,
+          "key": "转",
+          "requires_on": [
+            "hidden_q",
+            "mark",
+            "red"
+          ],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "收尾",
+          "revision": 1,
+          "key": "推",
+          "requires_on": [
+            "hidden_q",
+            "mark",
+            "red"
+          ],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "月",
+          "locks": false
+        }
+      ],
+      "acceptance": {
+        "label": "accept-all",
+        "required_on": [],
+        "required_off": [],
+        "forbidden": [
+          "!locked"
+        ]
+      }
+    }
+  ]
+}

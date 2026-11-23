@@ -65,8 +65,41 @@ class SourceRef:
 
 
 @dataclass(frozen=True)
+class RuleVocabulary:
+    """The registers a source segment's revision makes available to a rule volume.
+
+    A revision "registers" the state flags, the visible subset (the standing
+    public picture), the patterns a key may print, and the keys the venue
+    allows.  Translator clauses may only use vocabulary registered against the
+    revision they were translated from.
+    """
+
+    flags: tuple[str, ...] = ()
+    visible_flags: frozenset[str] = frozenset()
+    patterns: tuple[str, ...] = ()
+    keys: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "flags": list(self.flags),
+            "visible_flags": sorted(self.visible_flags),
+            "patterns": list(self.patterns),
+            "keys": list(self.keys),
+        }
+
+    @staticmethod
+    def from_dict(data: dict[str, object]) -> "RuleVocabulary":
+        return RuleVocabulary(
+            flags=tuple(str(x) for x in data.get("flags", [])),  # type: ignore[union-attr]
+            visible_flags=frozenset(str(x) for x in data.get("visible_flags", [])),  # type: ignore[union-attr]
+            patterns=tuple(str(x) for x in data.get("patterns", [])),  # type: ignore[union-attr]
+            keys=tuple(str(x) for x in data.get("keys", [])),  # type: ignore[union-attr]
+        )
+
+
+@dataclass(frozen=True)
 class TranslationEntry:
-    "Store exactly the revision that was translated; never re-label it."""
+    "Store exactly the revision that was translated; never re-label it."
 
     translation_id: str
     document_id: str

@@ -10,9 +10,18 @@ Python 3.11，SQLite。**两侧物理分离**：源段目录与交付仓各自�
 # 端到端跑完 materials/753 全部场景（含用只读客户端读新旧包）
 python3 run_demo.py
 
+# 规则实演席：跑完全部规则局面（含勘误、预算、隐藏态、试错合并、坏册、改修订）
+python3 -m delivery_system rules-demo
+
 # 仅验证真实包文件
 python3 materials/753/package_reader.py data/packages/PACK1.json
 python3 materials/753/package_reader.py data/packages/PACK2.json
+
+# 规则席命令行（数据在 materials/rules/*.json）
+python3 -m delivery_system rule-check  --volumes materials/rules/base_four.json
+python3 -m delivery_system rule-plan   --volumes materials/rules/base_four.json
+python3 -m delivery_system rule-play   --volumes materials/rules/base_four.json --actual 丁
+python3 -m delivery_system rule-replay --volume <one-volume.json> --keys 试色,转
 
 # 测试（标准库 unittest，无需 pytest）
 python3 -m unittest discover -s tests -v
@@ -23,7 +32,7 @@ python3 -m unittest discover -s tests -v
 ```
 delivery_system/
   models.py              不可变值对象：SourceSegment/SourceProduct/SourceRef/
-                         TranslationEntry/CoverChunk/CoverDiagnosis/CoverResult
+                         RuleVocabulary/TranslationEntry/CoverChunk/CoverDiagnosis/CoverResult
   source_catalog.py      源段目录（独立 SQLite + 发布快照 + release 历史）
                          + PublishedSourceReader（交付侧只读句柄）
   coverage.py            条目评估 + 精确覆盖区间 DP + 失败诊断
@@ -31,7 +40,17 @@ delivery_system/
   package_io.py          translation-package/1 写入与结构/覆盖校验
   cli.py / __main__.py   命令行
   demo.py                materials/753 端到端复现（调用官方 package_reader.py）
+  rules.py               规则实演引擎：Clause/Volume/State、首条适用条文、
+                         白锁、完整性与可达局面
+  plan.py                自适应鉴别脚本合成（AND-OR 搜索、合并检测、
+                         失败证书、实演席 run_script）
+  rule_materials.py      甲/乙/丙/丁、勘误、隐藏态对、试错陷阱、坏册等样例
+                         + 修订绑定的整册装配 + JSON 互换
+  rules_demo.py          规则实演席端到端复现（全部局面 + 装配/勘误/旧回放）
+  cli.py / __main__.py   命令行
 tests/test_delivery.py   20 个测试：覆盖、过期、重组、不可变、规模
+tests/test_rules.py      29 个测试：引擎语义、两步鉴别、勘误、预算、隐藏态、
+                         试错合并、互斥首键、坏册筛查、修订装配、JSON 往返、交接证明
 ```
 
 ## 两侧的实质逻辑
@@ -82,6 +101,57 @@ content_sha256/created_at/source_release`。包一旦写入即不可变：同 id
 | 读旧包 PACK1 | 仍为 S1@1..S4@1 与旧译文 id/文本 |
 
 `package_reader.py` 被以子进程方式真实读取新旧两个包并校验输出。
+
+## 规则实演席（试玩桌上不能重开局）
+
+译本是**同一源稿的多版规则册**；盒子出厂固定按其中一版工作，试玩全程不能重置成
+初局。任务：在不重置的前提下，用一串按键 + 看到的公开图案，停手时准确报出实际用的
+是哪一册。
+
+### 源段目录侧：修订登记可用词汇
+- 每个源段修订可登记 `RuleVocabulary`（`flags` / `visible_flags` / `patterns` / `keys`），
+  即该修订允许的**局面标志、公开图案、按键**。`segment_vocabulary` 以
+  `(document_id, segment_id, revision)` 为主键，修订一变旧词表仍可回溯，但**不能**拿
+  旧修订号再登记到新版段——`set_segment_vocabulary` 会因修订不符抛 `RevisionConflict`。
+
+### 交付仓侧：每册的真实译块 = 有限自动机
+- `Volume`：按**整册实际块序 + 块内次序**排列的 `Clause`，加上标志、公开子集、按键、
+  初局。
+- 每次按键取**第一条适用条文**（按其块序）；`rewrite` 读的都是按键**前**局面；无适用
+  条文则该键不答——`check_completeness` 把它记为**缺口**，并给出从初局可走到该局面、
+  再按缺键的**按键历程**。
+- “答白并进入永远报白”的锁局用 `locks=True` 条文建模（硬件行为，锁后每个键都答白，
+  故不算缺口）。
+- `replay(volume, keys)` 是**校译席**：只拿一册 + 一串按键，逐步得到公开图案、实际命中
+  条文、内部局面；`complete=False` 即中途撞上缺口。
+
+### 试玩席：一桌一只盒，合成单一分支脚本
+- 候选 = 经 `screen_candidates` 剔除（缺答复、超规模）后的**合法册**；退件绝不进入候选。
+- `synthesize`：对 `(册号, 局面)` 信念集做 AND-OR 搜索，**键由我方选、观察由对方出**，
+  要求每个观察分支都可解 → 得到**确定性、看图案才决定下一键**的分支脚本；按预算迭代
+  加深取最小步数。
+- `synthesize_merged`：先**各册内部**把“未来按键反应完全相同”的局面合并（Moore 最小化）
+  再搜；册号始终保留，故仍能报对书、单册勘误只失效该册的商。样例断言两者同深同脚本。
+- 失败时 `PlanResult.failure` 给**证书**：`indistinguishable_volumes`（存在任意长走法都
+  分不开的册组，如改丁后丙丁同报星）或 `budget_exhausted`（逐首键列出仍被合并的分支）；
+  预算不够时尚未被合并的各册仍各自合法。
+- `run_script(strategy, machine)` 是**实物试玩**：只凭 `press` 返回的图案决定下一键，绝不
+  读内部标志；`verify_plan` 是**第二位馆员**：沿每条分支重走信念，核对脚本对全部候选
+  均可跑通、叶节点恰好唯一命名一册（交脚本时附完整试走证）。
+
+### materials/rules 复现结果（`python3 -m delivery_system rules-demo`）
+
+| 局面 | 结果 |
+|---|---|
+| 甲乙丙丁 | 两步足矣：`试色`→红则`转`（方/圆）、蓝则`推`（星/月），四册各自命中 |
+| 丁改判（推报星） | 丙丁**永远同反应**，证书 `indistinguishable_volumes` |
+| 恢复旧册、预算=1 | 四册各自合法，却 `budget_exhausted`：第一键红/蓝各留两册 |
+| 隐藏态对（戊己） | 前两键同为 红、方，第三键 `推` 才分 星/月（3 步） |
+| 试错陷阱（壬癸） | `转` 可分；先按 `推` 两册同时锁白，此后**永久合并** |
+| 互斥首键（子丑寅） | 每对都有鉴别键，但没有单一首键能一次分三册，需两步自适应 |
+| 坏册（庚） | `推` 缺答复 → `screen_candidates` 以 `missing_answer` 退件，不入候选 |
+| 修订/勘误/旧回放 | 改 `辨纹`→rev2：旧译块被判 `StaleBlockError`；只换丁为合译新块（`replace=True`），甲乙丙原封不动；旧册仍按旧规则回放 |
+
 
 ## 规模与不扩平台
 

@@ -1,0 +1,457 @@
+{
+  "description": "ding_erratum",
+  "volumes": [
+    {
+      "volume_id": "甲",
+      "blocks": [
+        [
+          "开局",
+          "辨纹"
+        ]
+      ],
+      "flags": [
+        "red",
+        "blue"
+      ],
+      "visible_flags": [
+        "blue",
+        "red"
+      ],
+      "keys": [
+        "试色",
+        "转",
+        "推"
+      ],
+      "initial_state": [],
+      "clauses": [
+        {
+          "segment_id": "开局",
+          "revision": 1,
+          "key": "试色",
+          "requires_on": [],
+          "requires_off": [
+            "blue",
+            "red"
+          ],
+          "rewrite": [
+            [
+              "red",
+              true
+            ]
+          ],
+          "pattern": "红",
+          "locks": false
+        },
+        {
+          "segment_id": "开局",
+          "revision": 1,
+          "key": "转",
+          "requires_on": [],
+          "requires_off": [
+            "blue",
+            "red"
+          ],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "开局",
+          "revision": 1,
+          "key": "推",
+          "requires_on": [],
+          "requires_off": [
+            "blue",
+            "red"
+          ],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "辨纹",
+          "revision": 1,
+          "key": "试色",
+          "requires_on": [
+            "red"
+          ],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "辨纹",
+          "revision": 1,
+          "key": "转",
+          "requires_on": [
+            "red"
+          ],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "方",
+          "locks": true
+        },
+        {
+          "segment_id": "辨纹",
+          "revision": 1,
+          "key": "推",
+          "requires_on": [
+            "red"
+          ],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        }
+      ],
+      "acceptance": {
+        "label": "accept-all",
+        "required_on": [],
+        "required_off": [],
+        "forbidden": [
+          "!locked"
+        ]
+      }
+    },
+    {
+      "volume_id": "乙",
+      "blocks": [
+        [
+          "开局",
+          "辨纹"
+        ]
+      ],
+      "flags": [
+        "red",
+        "blue"
+      ],
+      "visible_flags": [
+        "blue",
+        "red"
+      ],
+      "keys": [
+        "试色",
+        "转",
+        "推"
+      ],
+      "initial_state": [],
+      "clauses": [
+        {
+          "segment_id": "开局",
+          "revision": 1,
+          "key": "试色",
+          "requires_on": [],
+          "requires_off": [
+            "blue",
+            "red"
+          ],
+          "rewrite": [
+            [
+              "red",
+              true
+            ]
+          ],
+          "pattern": "红",
+          "locks": false
+        },
+        {
+          "segment_id": "开局",
+          "revision": 1,
+          "key": "转",
+          "requires_on": [],
+          "requires_off": [
+            "blue",
+            "red"
+          ],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "开局",
+          "revision": 1,
+          "key": "推",
+          "requires_on": [],
+          "requires_off": [
+            "blue",
+            "red"
+          ],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "辨纹",
+          "revision": 1,
+          "key": "试色",
+          "requires_on": [
+            "red"
+          ],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "辨纹",
+          "revision": 1,
+          "key": "转",
+          "requires_on": [
+            "red"
+          ],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "圆",
+          "locks": true
+        },
+        {
+          "segment_id": "辨纹",
+          "revision": 1,
+          "key": "推",
+          "requires_on": [
+            "red"
+          ],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        }
+      ],
+      "acceptance": {
+        "label": "accept-all",
+        "required_on": [],
+        "required_off": [],
+        "forbidden": [
+          "!locked"
+        ]
+      }
+    },
+    {
+      "volume_id": "丙",
+      "blocks": [
+        [
+          "开局",
+          "辨纹"
+        ]
+      ],
+      "flags": [
+        "red",
+        "blue"
+      ],
+      "visible_flags": [
+        "blue",
+        "red"
+      ],
+      "keys": [
+        "试色",
+        "转",
+        "推"
+      ],
+      "initial_state": [],
+      "clauses": [
+        {
+          "segment_id": "开局",
+          "revision": 1,
+          "key": "试色",
+          "requires_on": [],
+          "requires_off": [
+            "blue",
+            "red"
+          ],
+          "rewrite": [
+            [
+              "blue",
+              true
+            ]
+          ],
+          "pattern": "蓝",
+          "locks": false
+        },
+        {
+          "segment_id": "开局",
+          "revision": 1,
+          "key": "转",
+          "requires_on": [],
+          "requires_off": [
+            "blue",
+            "red"
+          ],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "开局",
+          "revision": 1,
+          "key": "推",
+          "requires_on": [],
+          "requires_off": [
+            "blue",
+            "red"
+          ],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "辨纹",
+          "revision": 1,
+          "key": "试色",
+          "requires_on": [
+            "blue"
+          ],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "辨纹",
+          "revision": 1,
+          "key": "转",
+          "requires_on": [
+            "blue"
+          ],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "辨纹",
+          "revision": 1,
+          "key": "推",
+          "requires_on": [
+            "blue"
+          ],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "星",
+          "locks": true
+        }
+      ],
+      "acceptance": {
+        "label": "accept-all",
+        "required_on": [],
+        "required_off": [],
+        "forbidden": [
+          "!locked"
+        ]
+      }
+    },
+    {
+      "volume_id": "丁",
+      "blocks": [
+        [
+          "开局",
+          "辨纹"
+        ]
+      ],
+      "flags": [
+        "red",
+        "blue"
+      ],
+      "visible_flags": [
+        "blue",
+        "red"
+      ],
+      "keys": [
+        "试色",
+        "转",
+        "推"
+      ],
+      "initial_state": [],
+      "clauses": [
+        {
+          "segment_id": "开局",
+          "revision": 1,
+          "key": "试色",
+          "requires_on": [],
+          "requires_off": [
+            "blue",
+            "red"
+          ],
+          "rewrite": [
+            [
+              "blue",
+              true
+            ]
+          ],
+          "pattern": "蓝",
+          "locks": false
+        },
+        {
+          "segment_id": "开局",
+          "revision": 1,
+          "key": "转",
+          "requires_on": [],
+          "requires_off": [
+            "blue",
+            "red"
+          ],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "开局",
+          "revision": 1,
+          "key": "推",
+          "requires_on": [],
+          "requires_off": [
+            "blue",
+            "red"
+          ],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "辨纹",
+          "revision": 1,
+          "key": "试色",
+          "requires_on": [
+            "blue"
+          ],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "辨纹",
+          "revision": 1,
+          "key": "转",
+          "requires_on": [
+            "blue"
+          ],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "白",
+          "locks": true
+        },
+        {
+          "segment_id": "辨纹",
+          "revision": 1,
+          "key": "推",
+          "requires_on": [
+            "blue"
+          ],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "星",
+          "locks": true
+        }
+      ],
+      "acceptance": {
+        "label": "accept-all",
+        "required_on": [],
+        "required_off": [],
+        "forbidden": [
+          "!locked"
+        ]
+      }
+    }
+  ]
+}

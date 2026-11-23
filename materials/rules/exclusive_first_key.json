@@ -1,0 +1,140 @@
+{
+  "description": "exclusive_first_key",
+  "volumes": [
+    {
+      "volume_id": "子",
+      "blocks": [
+        [
+          "固定"
+        ]
+      ],
+      "flags": [],
+      "visible_flags": [],
+      "keys": [
+        "x",
+        "y"
+      ],
+      "initial_state": [],
+      "clauses": [
+        {
+          "segment_id": "固定",
+          "revision": 1,
+          "key": "x",
+          "requires_on": [],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "红",
+          "locks": false
+        },
+        {
+          "segment_id": "固定",
+          "revision": 1,
+          "key": "y",
+          "requires_on": [],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "红",
+          "locks": false
+        }
+      ],
+      "acceptance": {
+        "label": "accept-all",
+        "required_on": [],
+        "required_off": [],
+        "forbidden": [
+          "!locked"
+        ]
+      }
+    },
+    {
+      "volume_id": "丑",
+      "blocks": [
+        [
+          "固定"
+        ]
+      ],
+      "flags": [],
+      "visible_flags": [],
+      "keys": [
+        "x",
+        "y"
+      ],
+      "initial_state": [],
+      "clauses": [
+        {
+          "segment_id": "固定",
+          "revision": 1,
+          "key": "x",
+          "requires_on": [],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "红",
+          "locks": false
+        },
+        {
+          "segment_id": "固定",
+          "revision": 1,
+          "key": "y",
+          "requires_on": [],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "蓝",
+          "locks": false
+        }
+      ],
+      "acceptance": {
+        "label": "accept-all",
+        "required_on": [],
+        "required_off": [],
+        "forbidden": [
+          "!locked"
+        ]
+      }
+    },
+    {
+      "volume_id": "寅",
+      "blocks": [
+        [
+          "固定"
+        ]
+      ],
+      "flags": [],
+      "visible_flags": [],
+      "keys": [
+        "x",
+        "y"
+      ],
+      "initial_state": [],
+      "clauses": [
+        {
+          "segment_id": "固定",
+          "revision": 1,
+          "key": "x",
+          "requires_on": [],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "蓝",
+          "locks": false
+        },
+        {
+          "segment_id": "固定",
+          "revision": 1,
+          "key": "y",
+          "requires_on": [],
+          "requires_off": [],
+          "rewrite": [],
+          "pattern": "红",
+          "locks": false
+        }
+      ],
+      "acceptance": {
+        "label": "accept-all",
+        "required_on": [],
+        "required_off": [],
+        "forbidden": [
+          "!locked"
+        ]
+      }
+    }
+  ]
+}

@@ -16,6 +16,7 @@ from typing import Any, Optional
 from .delivery_repository import DeliveryRepository
 from .errors import DeliveryError, NoCoverError
 from .package_io import read_package, validate_package, write_package
+from .rules import Volume
 from .source_catalog import PublishedSourceReader, SourceCatalog
 
 
@@ -442,6 +443,131 @@ def cmd_demo(args: argparse.Namespace) -> int:
     return 0 if report["ok"] else 3
 
 
+def cmd_rules_demo(args: argparse.Namespace) -> int:
+    """End-to-end run over every rule-realization scenario in the brief."""
+
+    import tempfile
+
+    from .rules_demo import run_rules_demo
+
+    with tempfile.TemporaryDirectory() as tmp:
+        report = run_rules_demo(tmp)
+    _emit(report)
+    return 0 if report["ok"] else 3
+
+
+# ----------------------------------------------------------------------
+# rule-realization seat
+# ----------------------------------------------------------------------
+def _load_rule_volumes(args: argparse.Namespace) -> list[Volume]:
+    from .rule_materials import volume_from_dict
+
+    with open(args.volumes, encoding="utf-8") as fh:
+        data = json.load(fh)
+    if isinstance(data, dict):
+        data = data.get("volumes", [])
+    return [volume_from_dict(item) for item in data]
+
+
+def cmd_rule_replay(args: argparse.Namespace) -> int:
+    from .rule_materials import volume_from_dict
+    from .rules import check_completeness, replay
+
+    with open(args.volume, encoding="utf-8") as fh:
+        volume = volume_from_dict(json.load(fh))
+    keys = [k for k in args.keys.split(",") if k] if args.keys else []
+    result = replay(volume, keys)
+    _emit(
+        {
+            "volume_id": volume.volume_id,
+            "replay": result.to_dict(),
+            "complete": result.complete,
+            "gaps": [] if args.no_gaps else [g.to_dict() for g in check_completeness(volume)],
+        }
+    )
+    return 0 if result.complete else 3
+
+
+def cmd_rule_check(args: argparse.Namespace) -> int:
+    from .rules import check_completeness, reachable_states
+
+    volumes = _load_rule_volumes(args)
+    payload = []
+    ok = True
+    for volume in volumes:
+        gaps = check_completeness(volume)
+        states = len(reachable_states(volume))
+        payload.append(
+            {
+                "volume_id": volume.volume_id,
+                "reachable_states": states,
+                "gaps": [g.to_dict() for g in gaps],
+                "complete": not gaps,
+            }
+        )
+        if gaps:
+            ok = False
+    _emit({"ok": ok, "volumes": payload})
+    return 0 if ok else 3
+
+
+def cmd_rule_screen(args: argparse.Namespace) -> int:
+    from .plan import screen_candidates
+
+    volumes = _load_rule_volumes(args)
+    accepted, rejected = screen_candidates(volumes)
+    _emit(
+        {
+            "accepted": [v.volume_id for v in accepted],
+            "rejected": [r.to_dict() for r in rejected],
+        }
+    )
+    return 0
+
+
+def cmd_rule_plan(args: argparse.Namespace) -> int:
+    from .plan import build_handoff, synthesize, synthesize_merged
+
+    volumes = _load_rule_volumes(args)
+    runner = synthesize_merged if args.merge else synthesize
+    result = runner(volumes, max_steps=args.max_steps)
+    if args.handoff:
+        _emit(build_handoff(result))
+    else:
+        _emit(result.to_dict())
+    return 0 if result.ok and not result.verification_problems else 3
+
+
+def cmd_rule_play(args: argparse.Namespace) -> int:
+    from .plan import strategy_to_dict
+    from .rules import build_machine
+
+    volumes = _load_rule_volumes(args)
+    by_id = {v.volume_id: v for v in volumes}
+    if args.actual not in by_id:
+        raise DeliveryError(f"actual volume {args.actual!r} not among candidates")
+
+    from .plan import synthesize
+
+    result = synthesize(volumes, max_steps=args.max_steps)
+    if not result.ok:
+        _emit({"ok": False, "failure": result.failure})
+        return 3
+    from .plan import run_script
+
+    trace = run_script(result.strategy, build_machine(by_id[args.actual]))
+    _emit(
+        {
+            "ok": trace.reported == args.actual,
+            "strategy": strategy_to_dict(result.strategy),
+            "actual": args.actual,
+            "trace": trace.to_dict(),
+        }
+    )
+    return 0 if trace.reported == args.actual else 3
+
+
+
 # ----------------------------------------------------------------------
 # parser
 # ----------------------------------------------------------------------
@@ -517,6 +643,31 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--operations", required=True)
 
     add("demo", cmd_demo, "run the end-to-end materials/753 demo")
+    add("rules-demo", cmd_rules_demo, "run every rule-realization scenario")
+
+    # -- rule-realization seat -----------------------------------------
+    sp = add("rule-check", cmd_rule_check, "per-volume completeness (every key answered)")
+    sp.add_argument("--volumes", required=True, help="JSON list of rule volumes")
+
+    sp = add("rule-plan", cmd_rule_plan, "synthesize one contingent identification script")
+    sp.add_argument("--volumes", required=True)
+    sp.add_argument("--max-steps", type=int, default=12)
+    sp.add_argument("--merge", action="store_true", help="merge identical future reactions first")
+    sp.add_argument("--handoff", action="store_true", help="emit the curatable hand-off document")
+
+    sp = add("rule-screen", cmd_rule_screen, "drop stale/gap volumes before planning")
+    sp.add_argument("--volumes", required=True)
+
+    sp = add("rule-play", cmd_rule_play, "run a script against one actual box, patterns only")
+    sp.add_argument("--volumes", required=True)
+    sp.add_argument("--actual", required=True)
+    sp.add_argument("--max-steps", type=int, default=12)
+
+    sp = add("rule-replay", cmd_rule_replay, "translator's-seat replay of one volume")
+    sp.add_argument("--volume", required=True, help="JSON for one rule volume")
+    sp.add_argument("--keys", default="", help="comma-separated key sequence")
+    sp.add_argument("--no-gaps", action="store_true")
+
     return p
 
 

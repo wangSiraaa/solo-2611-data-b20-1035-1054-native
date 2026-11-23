@@ -24,7 +24,7 @@ from .errors import (
     RevisionConflict,
     SegmentNotFound,
 )
-from .models import SourceProduct, SourceSegment
+from .models import RuleVocabulary, SourceProduct, SourceSegment
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS documents (
@@ -52,6 +52,13 @@ CREATE INDEX IF NOT EXISTS idx_segments_doc_position
     ON segments (document_id, position);
 CREATE INDEX IF NOT EXISTS idx_releases_doc
     ON source_releases (document_id, release_id);
+CREATE TABLE IF NOT EXISTS segment_vocabulary (
+    document_id      TEXT NOT NULL,
+    segment_id       TEXT NOT NULL,
+    revision         INTEGER NOT NULL,
+    vocab_json       TEXT NOT NULL,
+    PRIMARY KEY (document_id, segment_id, revision)
+);
 """
 
 
@@ -381,6 +388,80 @@ class SourceCatalog:
             conn.close()
 
     # ------------------------------------------------------------------
+    # rule vocabulary (per segment revision)
+    # ------------------------------------------------------------------
+    def set_segment_vocabulary(
+        self,
+        document_id: str,
+        segment_id: str,
+        revision: int,
+        vocabulary: RuleVocabulary,
+    ) -> None:
+        """Register the flags/patterns/keys a *specific revision* makes available.
+
+        Vocabulary is bound to the exact revision: a source correction publishes
+        a fresh revision, and any rule volume must re-identify its clauses
+        against that revision's vocabulary rather than reuse the old labels.
+        """
+
+        conn = _connect(self.db_path)
+        try:
+            with _transaction(conn):
+                self._require_document(conn, document_id)
+                row = conn.execute(
+                    "SELECT revision FROM segments WHERE document_id = ? AND segment_id = ?",
+                    (document_id, segment_id),
+                ).fetchone()
+                if row is None:
+                    raise SegmentNotFound(
+                        f"segment {segment_id!r} not found in {document_id!r}"
+                    )
+                if int(row["revision"]) != revision:
+                    raise RevisionConflict(
+                        f"segment {segment_id!r} is at revision {int(row['revision'])}, "
+                        f"cannot register vocabulary for revision {revision}"
+                    )
+                conn.execute(
+                    "INSERT OR REPLACE INTO segment_vocabulary"
+                    " (document_id, segment_id, revision, vocab_json) VALUES (?, ?, ?, ?)",
+                    (
+                        document_id,
+                        segment_id,
+                        revision,
+                        json.dumps(vocabulary.to_dict(), ensure_ascii=False, sort_keys=True),
+                    ),
+                )
+        finally:
+            conn.close()
+
+    def get_segment_vocabulary(
+        self, document_id: str, segment_id: str, revision: Optional[int] = None
+    ) -> RuleVocabulary:
+        """Vocabulary for a segment revision (defaults to the current revision)."""
+
+        conn = _connect(self.db_path, readonly=True)
+        try:
+            row = conn.execute(
+                "SELECT revision FROM segments WHERE document_id = ? AND segment_id = ?",
+                (document_id, segment_id),
+            ).fetchone()
+            if row is None:
+                raise SegmentNotFound(
+                    f"segment {segment_id!r} not found in {document_id!r}"
+                )
+            rev = int(row["revision"]) if revision is None else int(revision)
+            vocab = conn.execute(
+                "SELECT vocab_json FROM segment_vocabulary"
+                " WHERE document_id = ? AND segment_id = ? AND revision = ?",
+                (document_id, segment_id, rev),
+            ).fetchone()
+            if vocab is None:
+                return RuleVocabulary()
+            return RuleVocabulary.from_dict(json.loads(vocab["vocab_json"]))
+        finally:
+            conn.close()
+
+    # ------------------------------------------------------------------
     # internals
     # ------------------------------------------------------------------
     @staticmethod
@@ -517,5 +598,30 @@ class PublishedSourceReader:
                 (document_id,),
             ).fetchone()
             return None if row is None or row["r"] is None else int(row["r"])
+        finally:
+            conn.close()
+
+    def get_segment_vocabulary(
+        self, document_id: str, segment_id: str, revision: Optional[int] = None
+    ) -> RuleVocabulary:
+        conn = _connect(self.db_path, readonly=True)
+        try:
+            row = conn.execute(
+                "SELECT revision FROM segments WHERE document_id = ? AND segment_id = ?",
+                (document_id, segment_id),
+            ).fetchone()
+            if row is None:
+                raise SegmentNotFound(
+                    f"segment {segment_id!r} not found in {document_id!r}"
+                )
+            rev = int(row["revision"]) if revision is None else int(revision)
+            vocab = conn.execute(
+                "SELECT vocab_json FROM segment_vocabulary"
+                " WHERE document_id = ? AND segment_id = ? AND revision = ?",
+                (document_id, segment_id, rev),
+            ).fetchone()
+            if vocab is None:
+                return RuleVocabulary()
+            return RuleVocabulary.from_dict(json.loads(vocab["vocab_json"]))
         finally:
             conn.close()

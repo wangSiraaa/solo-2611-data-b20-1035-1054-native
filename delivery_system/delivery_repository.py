@@ -62,6 +62,14 @@ CREATE TABLE IF NOT EXISTS packages (
 );
 CREATE INDEX IF NOT EXISTS idx_packages_doc_lang
     ON packages (document_id, language);
+CREATE TABLE IF NOT EXISTS rule_volumes (
+    volume_id        TEXT PRIMARY KEY,
+    document_id      TEXT NOT NULL,
+    volume_json      TEXT NOT NULL,
+    created_at       TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_rule_volumes_doc
+    ON rule_volumes (document_id);
 """
 
 
@@ -382,6 +390,97 @@ class DeliveryRepository:
         finally:
             conn.close()
 
+    # ------------------------------------------------------------------
+    # rule volumes
+    # ------------------------------------------------------------------
+    def add_rule_volume(
+        self,
+        volume_id: str,
+        document_id: str,
+        volume_json: str,
+        *,
+        replace: bool = False,
+    ) -> None:
+        """Store one translated rule volume (already release-checked upstream).
+
+        Immutable by default (a re-add of identical flavour is idempotent).  An
+        erratum replaces exactly one volume by id, leaving every other volume —
+        and every old auditorium — untouched.
+        """
+
+        if not volume_id:
+            raise InvalidTranslation("volume_id must be non-empty")
+        conn = self._connect()
+        try:
+            with self._transaction(conn):
+                existing = conn.execute(
+                    "SELECT volume_json FROM rule_volumes WHERE volume_id = ?",
+                    (volume_id,),
+                ).fetchone()
+                if existing is not None:
+                    if existing["volume_json"] == volume_json:
+                        return
+                    if not replace:
+                        raise TranslationExists(
+                            f"rule volume {volume_id!r} already exists with different content"
+                        )
+                    conn.execute(
+                        "UPDATE rule_volumes SET volume_json = ?, created_at = ?"
+                        " WHERE volume_id = ?",
+                        (volume_json, _now(), volume_id),
+                    )
+                    return
+                try:
+                    self.source.published_product(document_id)
+                except DocumentNotFound:
+                    raise InvalidTranslation(
+                        f"document {document_id!r} does not exist in the source catalog"
+                    )
+                conn.execute(
+                    "INSERT INTO rule_volumes (volume_id, document_id, volume_json, created_at)"
+                    " VALUES (?, ?, ?, ?)",
+                    (volume_id, document_id, volume_json, _now()),
+                )
+        finally:
+            conn.close()
+
+    def get_rule_volume(self, volume_id: str) -> dict[str, object]:
+        conn = self._connect()
+        try:
+            row = conn.execute(
+                "SELECT volume_json FROM rule_volumes WHERE volume_id = ?", (volume_id,)
+            ).fetchone()
+            if row is None:
+                raise InvalidTranslation(f"rule volume {volume_id!r} not found")
+            return json.loads(row["volume_json"])
+        finally:
+            conn.close()
+
+    def list_rule_volumes(self, document_id: Optional[str] = None) -> list[dict[str, object]]:
+        clauses: list[str] = []
+        params: list[object] = []
+        if document_id is not None:
+            clauses.append("document_id = ?")
+            params.append(document_id)
+        where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+        conn = self._connect()
+        try:
+            rows = conn.execute(
+                "SELECT volume_id, document_id, volume_json, created_at"
+                " FROM rule_volumes" + where + " ORDER BY volume_id",
+                params,
+            ).fetchall()
+            return [
+                {
+                    "volume_id": row["volume_id"],
+                    "document_id": row["document_id"],
+                    "volume": json.loads(row["volume_json"]),
+                    "created_at": row["created_at"],
+                }
+                for row in rows
+            ]
+        finally:
+            conn.close()
     def list_packages(
         self, document_id: Optional[str] = None, language: Optional[str] = None
     ) -> list[dict[str, object]]:
