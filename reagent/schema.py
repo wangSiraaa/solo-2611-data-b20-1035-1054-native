@@ -222,6 +222,14 @@ def connect(path: Union[str, Path]) -> sqlite3.Connection:
 
 def initialize(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+    # The weaving room shares this database; create its tables when the
+    # extension is present. Imported lazily so the reagent package stays
+    # self-contained without the loom package on disk.
+    try:
+        from loom.schema import LOOM_SCHEMA
+    except ImportError:  # pragma: no cover - extension is optional
+        return
+    conn.executescript(LOOM_SCHEMA)
 
 
 @contextmanager

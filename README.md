@@ -6,8 +6,9 @@ Python 3.11 + SQLite 的试剂库存服务与运行库。只使用 `materials/71
 ## 运行
 
 ```bash
-python3 -m unittest discover -s tests -v     # 46 个测试
+python3 -m unittest discover -s tests -v     # 77 个测试（46 库存/运行 + 31 织机）
 python3 demo_719.py                          # 跑 719 操作文件并打印可手算守恒
+python3 demo_loom.py                         # 织样机：装梭/过梭/搬运/交接/执行带
 ```
 
 CLI 独立入口（`--db` 指向 SQLite 文件）：
@@ -111,3 +112,21 @@ python3 -m reagent --db store.db run-ops --inventory materials/719/inventory.jso
 至 100 瓶 / 200 运行已在 `ScaleTests` 覆盖。不做分布式事务、进程强杀、
 真实仪器通信或结果判读。终态收束依赖单库事务 + 保存回执：开始失败时在同一
 事务内释放全部预留并写终态原因，之后的重放只读该回执。
+
+## 织样机扩展（`loom/`，详见 `loom/README.md`）
+
+在同一个 SQLite 库上增加实体织梭与织单，线量不另存副本，全部由 reagent
+运行与只增事件账本推导：
+
+- **装梭两阶段**：`reserve_load` 走原 `create_run` 预留（不足/失效整体回滚，
+  梭里不凭空添线），`confirm_load` 走原 `start_run` 实领；成功才按出厂边上机，
+  效期失败则释放预留、装梭记 `failed`。两阶段回执均幂等可重放。
+- **事件账本**：`load/unload/carry/pass/handoff` 只增不删；过梭耗一份并把
+  梭与机头移到对岸，搬梭耗一票不耗线，整梭交接余线随行且不退瓶，空梭才可卸。
+  `shuttle_trace` 在没有织单时也能查余线、侧、机台和全部回执链。
+- **最少票执行带**：Dijkstra 按 `(票数, 动作数)` 编译带实际梭号的整单带；
+  开织前逐步按实物核实，排练后被交接/挪动会改判失败且不耗线；关机后从最后
+  完成行续织、回执重发不重复耗线；整带可作废并按未织后缀重编。成品含每只梭
+  的余量去向。约束：单机 ≤6 梭、纹样 ≤16 行、票 ≤4。
+- 演示 `demo_loom.py` 覆盖题目 A–F 全部场景（红蓝红恰用一票、蓝芯到期拒装
+  拒单、零票全红、排练后交接改判、关机续织、整带作废后缀重编）。

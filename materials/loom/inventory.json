@@ -1,0 +1,36 @@
+{
+  "initial_day": 10,
+  "kinds": [
+    {"kind": "R", "open_lifetime_days": 2},
+    {"kind": "B", "open_lifetime_days": 2}
+  ],
+  "bottles": [
+    {
+      "bottle_id": "R-bottle",
+      "kind": "R",
+      "total_portions": 6,
+      "intake_day": 10,
+      "printed_expiry_day": 30,
+      "opened_day": null
+    },
+    {
+      "bottle_id": "B-bottle",
+      "kind": "B",
+      "total_portions": 3,
+      "intake_day": 10,
+      "printed_expiry_day": 11,
+      "opened_day": null
+    },
+    {
+      "bottle_id": "R-spare",
+      "kind": "R",
+      "total_portions": 2,
+      "intake_day": 10,
+      "printed_expiry_day": 30,
+      "opened_day": null
+    }
+  ],
+  "methods": [
+    {"method_id": "seed", "revision": 1, "requirements": {"R": 1}}
+  ]
+}

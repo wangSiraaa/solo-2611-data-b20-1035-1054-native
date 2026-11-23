@@ -13,6 +13,13 @@ from .inventory import InventoryService
 from .runs import RunService
 from .schema import connect, initialize
 
+try:
+    from loom.errors import LoomError
+    from loom.service import LoomService
+except ImportError:  # pragma: no cover - loom extension is optional
+    LoomError = None
+    LoomService = None
+
 
 def _load_json(path: str) -> dict:
     with open(path, "r", encoding="utf-8") as handle:
@@ -147,6 +154,122 @@ def cmd_run_ops(args: argparse.Namespace) -> dict:
     results = execute_operations(conn, _load_json(args.operations))
     conn.close()
     return {"results": results}
+
+
+# ---------------------------------------------------------------------------
+# weaving room command handlers
+# ---------------------------------------------------------------------------
+def _loom(conn) -> "LoomService":
+    if LoomService is None:  # pragma: no cover
+        raise RuntimeError("loom extension is not available")
+    return LoomService(conn)
+
+
+def cmd_register_loom(args: argparse.Namespace) -> dict:
+    conn = connect(args.db)
+    result = _loom(conn).register_loom(args.loom_id, args.head_side, args.day)
+    conn.close()
+    return result
+
+
+def cmd_register_shuttle(args: argparse.Namespace) -> dict:
+    conn = connect(args.db)
+    result = _loom(conn).register_shuttle(
+        args.shuttle_id, args.core_id, args.color, args.factory_side, args.day
+    )
+    conn.close()
+    return result
+
+
+def cmd_reserve_load(args: argparse.Namespace) -> dict:
+    conn = connect(args.db)
+    result = _loom(conn).reserve_load(
+        args.load_id, args.shuttle_id, args.loom_id, args.bottle,
+        args.portions, args.day,
+    )
+    conn.close()
+    return result
+
+
+def cmd_confirm_load(args: argparse.Namespace) -> dict:
+    conn = connect(args.db)
+    result = _loom(conn).confirm_load(args.load_id, args.day)
+    conn.close()
+    return result
+
+
+def cmd_carry(args: argparse.Namespace) -> dict:
+    conn = connect(args.db)
+    result = _loom(conn).carry_shuttle(args.receipt_id, args.shuttle_id, args.day)
+    conn.close()
+    return result
+
+
+def cmd_pass(args: argparse.Namespace) -> dict:
+    conn = connect(args.db)
+    result = _loom(conn).pass_shuttle(args.receipt_id, args.shuttle_id, args.day)
+    conn.close()
+    return result
+
+
+def cmd_handoff(args: argparse.Namespace) -> dict:
+    conn = connect(args.db)
+    result = _loom(conn).handoff_shuttle(
+        args.receipt_id, args.shuttle_id, args.target_loom, args.day
+    )
+    conn.close()
+    return result
+
+
+def cmd_unload_shuttle(args: argparse.Namespace) -> dict:
+    conn = connect(args.db)
+    result = _loom(conn).unload_shuttle(args.receipt_id, args.shuttle_id, args.day)
+    conn.close()
+    return result
+
+
+def cmd_shuttle_trace(args: argparse.Namespace) -> dict:
+    conn = connect(args.db)
+    result = _loom(conn).shuttle_trace(args.shuttle_id)
+    conn.close()
+    return result
+
+
+def cmd_create_job(args: argparse.Namespace) -> dict:
+    conn = connect(args.db)
+    result = _loom(conn).create_weave_job(
+        args.job_id, args.loom_id, args.pattern, args.tickets, args.day
+    )
+    conn.close()
+    return result
+
+
+def cmd_verify_job(args: argparse.Namespace) -> dict:
+    conn = connect(args.db)
+    result = _loom(conn).verify_job(args.job_id)
+    conn.close()
+    return result
+
+
+def cmd_weave_next(args: argparse.Namespace) -> dict:
+    conn = connect(args.db)
+    result = _loom(conn).weave_next(args.job_id, args.day)
+    conn.close()
+    return result
+
+
+def cmd_void_job(args: argparse.Namespace) -> dict:
+    conn = connect(args.db)
+    result = _loom(conn).void_job(args.job_id, args.reason, args.day)
+    conn.close()
+    return result
+
+
+def cmd_get_job(args: argparse.Namespace) -> dict:
+    conn = connect(args.db)
+    result = _loom(conn).get_job(args.job_id)
+    conn.close()
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -382,6 +505,91 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--operations", required=True)
     p.set_defaults(handler=cmd_run_ops)
 
+    # -- weaving room -----------------------------------------------------
+    p = sub.add_parser("register-loom", help="register a loom with initial head side")
+    p.add_argument("--loom-id", required=True)
+    p.add_argument("--head-side", required=True, choices=("left", "right"))
+    p.add_argument("--day", required=True, type=int)
+    p.set_defaults(handler=cmd_register_loom)
+
+    p = sub.add_parser("register-shuttle", help="register a physical shuttle")
+    p.add_argument("--shuttle-id", required=True)
+    p.add_argument("--core-id", required=True)
+    p.add_argument("--color", required=True)
+    p.add_argument("--factory-side", required=True, choices=("left", "right"))
+    p.add_argument("--day", required=True, type=int)
+    p.set_defaults(handler=cmd_register_shuttle)
+
+    p = sub.add_parser("reserve-load", help="phase 1 of 装梭: reserve portions")
+    p.add_argument("--load-id", required=True)
+    p.add_argument("--shuttle-id", required=True)
+    p.add_argument("--loom-id", required=True)
+    p.add_argument("--bottle", required=True)
+    p.add_argument("--portions", required=True, type=int)
+    p.add_argument("--day", required=True, type=int)
+    p.set_defaults(handler=cmd_reserve_load)
+
+    p = sub.add_parser("confirm-load", help="phase 2 of 装梭: start run and mount")
+    p.add_argument("--load-id", required=True)
+    p.add_argument("--day", required=True, type=int)
+    p.set_defaults(handler=cmd_confirm_load)
+
+    p = sub.add_parser("carry", help="搬: move one shuttle to the other side")
+    p.add_argument("--receipt-id", required=True)
+    p.add_argument("--shuttle-id", required=True)
+    p.add_argument("--day", required=True, type=int)
+    p.set_defaults(handler=cmd_carry)
+
+    p = sub.add_parser("pass", help="过梭: weave one row, consume one portion")
+    p.add_argument("--receipt-id", required=True)
+    p.add_argument("--shuttle-id", required=True)
+    p.add_argument("--day", required=True, type=int)
+    p.set_defaults(handler=cmd_pass)
+
+    p = sub.add_parser("handoff", help="hand a whole shuttle to another loom")
+    p.add_argument("--receipt-id", required=True)
+    p.add_argument("--shuttle-id", required=True)
+    p.add_argument("--target-loom", required=True)
+    p.add_argument("--day", required=True, type=int)
+    p.set_defaults(handler=cmd_handoff)
+
+    p = sub.add_parser("unload-shuttle", help="unload an empty shuttle")
+    p.add_argument("--receipt-id", required=True)
+    p.add_argument("--shuttle-id", required=True)
+    p.add_argument("--day", required=True, type=int)
+    p.set_defaults(handler=cmd_unload_shuttle)
+
+    p = sub.add_parser("shuttle-trace", help="remaining/side/machine/receipts")
+    p.add_argument("--shuttle-id", required=True)
+    p.set_defaults(handler=cmd_shuttle_trace)
+
+    p = sub.add_parser("create-job", help="compile a minimum-ticket execution tape")
+    p.add_argument("--job-id", required=True)
+    p.add_argument("--loom-id", required=True)
+    p.add_argument("--pattern", required=True, nargs="+")
+    p.add_argument("--tickets", required=True, type=int)
+    p.add_argument("--day", required=True, type=int)
+    p.set_defaults(handler=cmd_create_job)
+
+    p = sub.add_parser("verify-job", help="re-verify a tape against the ledger")
+    p.add_argument("--job-id", required=True)
+    p.set_defaults(handler=cmd_verify_job)
+
+    p = sub.add_parser("weave-next", help="execute/resume the next tape step")
+    p.add_argument("--job-id", required=True)
+    p.add_argument("--day", required=True, type=int)
+    p.set_defaults(handler=cmd_weave_next)
+
+    p = sub.add_parser("void-job", help="void a tape so its suffix can be replanned")
+    p.add_argument("--job-id", required=True)
+    p.add_argument("--reason", required=True)
+    p.add_argument("--day", required=True, type=int)
+    p.set_defaults(handler=cmd_void_job)
+
+    p = sub.add_parser("get-job", help="show a weave job and its tape")
+    p.add_argument("--job-id", required=True)
+    p.set_defaults(handler=cmd_get_job)
+
     return parser
 
 
@@ -391,6 +599,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         result = args.handler(args)
     except ReagentError as exc:
+        _emit({"error_type": exc.error_type, "error": str(exc)})
+        return 2
+    except LoomError as exc:
         _emit({"error_type": exc.error_type, "error": str(exc)})
         return 2
     _emit(result)
